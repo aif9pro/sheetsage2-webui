@@ -42,7 +42,12 @@
 
 ### 方式二：从源码跑
 
-要求 **Windows x64 + Python 3.12**，且 `ffmpeg` 在 `PATH` 上。（Linux / macOS 理论可行但**未验证**——便携运行时和 ffmpeg 都是 Windows x64。）
+**Windows**：要求 **Windows x64 + Python 3.12**，且 `ffmpeg` 在 `PATH` 上。
+
+**macOS**：同样支持源码方式（Apple Silicon / Intel 均可，走 CPU 推理，速度比带 N 卡的机器慢）。完整步骤见
+[**`docs/macOS安装指南.md`**](docs/macOS安装指南.md)，装好后用 `./start.sh` 启动（对应 Windows 的 `start.bat`）。
+要点：`brew install python@3.12 ffmpeg` → 建 venv → 先装 **不带 `+cu130`** 的 torch/torchaudio →
+`pip install -r requirements-macos.txt` → 下权重 → `./start.sh`。
 
 ```bat
 :: 1) 环境
@@ -94,7 +99,7 @@ output/<日期时间>_<任务号>/
 
 ## 已知限制
 
-* **Windows x64 only**。便携运行时与 ffmpeg 都是 Windows 版，Linux / macOS 未验证。
+* **整合包是 Windows x64 专用**（便携运行时与 ffmpeg 都是 Windows 二进制）。macOS 支持**从源码**跑（走 CPU 推理，带 N 卡的 Windows 更快），见 [`docs/macOS安装指南.md`](docs/macOS安装指南.md)；Linux 未验证。
 * **男女对唱 / 和声的逐音归属没解决**：目前只能稳定产出主旋律一条线，所以不建议直接拿它出两条人声轨。
 * **单任务串行**：同时跑会 OOM。
 * 歌词模板对**英文多音节**、长歌整曲映射尚未优化。

@@ -173,6 +173,53 @@ def is_gpu_failure(exc: BaseException) -> bool:
     return any(hint in text for hint in _GPU_FAILURE_HINTS)
 
 
+def _sync_dynamic_module_cache() -> None:
+    """把 SheetSage2 目录下的全部 ``*.py`` 补齐进 transformers 的「远程代码」缓存。
+
+    为什么必须补：``AutoModel.from_pretrained(..., trust_remote_code=True)`` 走的是
+    transformers 的**动态模块**机制——它先把该仓库的 ``*.py`` 拷进
+    ``HF_MODULES_CACHE/transformers_modules/<repo>/`` 再 import。但**本地目录分支只
+    拷贝入口文件的「直接」相对导入，不递归**
+    （见 ``transformers/dynamic_module_utils.py::get_cached_module_file``：本地分支用的是
+    ``get_relative_imports`` 而非 ``get_relative_import_files``）。于是被
+    ``exports_sheetsage2`` / ``tokenization_sheetsage2`` 以**二级**相对导入引用的
+    ``chord_spelling_sheetsage2.py`` 会被漏掉，运行时报::
+
+        FileNotFoundError:
+          .../transformers_modules/SheetSage2/chord_spelling_sheetsage2.py
+
+    这里在加载前把源码目录里的 ``*.py`` 全部补齐进缓存目录（只补缺失 / 大小变化的），
+    对任意深度的相对导入都安全；transformers 后续的拷贝逻辑不会删掉我们补的文件。
+    """
+    src = Path(config.SHEETSAGE2_DIR)
+    if not src.is_dir():
+        return
+    try:
+        from transformers.dynamic_module_utils import (
+            HF_MODULES_CACHE,
+            TRANSFORMERS_DYNAMIC_MODULE_NAME,
+            _sanitize_module_name,
+        )
+    except Exception:  # noqa: BLE001 - 内部 API 变动时静默跳过，别让加载直接失败
+        return
+    dest = Path(HF_MODULES_CACHE) / TRANSFORMERS_DYNAMIC_MODULE_NAME / _sanitize_module_name(src.name)
+    try:
+        dest.mkdir(parents=True, exist_ok=True)
+        (dest / "__init__.py").touch(exist_ok=True)
+        for py in src.glob("*.py"):
+            target = dest / py.name
+            try:
+                if not target.exists() or target.stat().st_size != py.stat().st_size:
+                    shutil.copyfile(py, target)
+            except OSError:
+                continue
+        import importlib
+
+        importlib.invalidate_caches()
+    except OSError:
+        return
+
+
 def load_model(device: str, on_stage):
     """加载 SheetSage2（含 MERT-v2-FullSong 主干）。
 
@@ -183,6 +230,8 @@ def load_model(device: str, on_stage):
 
     import torch
     from transformers import AutoModel
+
+    _sync_dynamic_module_cache()
 
     if device == "cpu":
         # CPU 推理就是靠核数堆出来的，别再自我限制成 4 线程

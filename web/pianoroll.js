@@ -1569,6 +1569,18 @@
       normalizeAll: normalizeAll,
       overlaps: overlaps,
       getTracks: getTracks,
+      /** 当前小节表（全音符坐标）。简谱导出要按真实小节分栏，不能拿拍号硬乘。 */
+      getMeasures: function () {
+        return S.measures.map(function (m) {
+          return { start: m.start, end: m.end, score_start: m.score_start, score_end: m.score_end };
+        });
+      },
+      /** 当前正在编辑的轨（简谱默认就导这一条旋律线）。 */
+      activeTrackIndex: function () { return S.activeTrack; },
+      /** 秒 → 谱面位置（全音符）。与后端 abcp._score_to_seconds 互为逆，变速曲也准。 */
+      secToPos: secToPos,
+      /** 谱面位置（全音符）→ 秒。简谱要按时间高亮，得把记号位置换算回来。 */
+      posToSec: posToSec,
       isDirty: isDirty,
       markSaved: markSaved,
       selectedCount: function () { return Object.keys(S.selection).length; },

@@ -22,9 +22,10 @@ import uuid
 import webbrowser
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 from fastapi import Body, FastAPI, File, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from app import config, envcheck
@@ -56,7 +57,15 @@ def pianoroll_js() -> FileResponse:
     path = config.WEB_DIR / "pianoroll.js"
     if not path.is_file():
         raise HTTPException(status_code=404, detail="pianoroll.js 不存在")
-    return FileResponse(path, media_type="text/javascript; charset=utf-8")
+    # **必须 no-store**：这个文件没有构建步骤，改完磁盘直接生效。若只给 etag /
+    # last-modified，浏览器会按「Last-Modified 启发式」留一份旧副本（实测能缓存十几
+    # 小时）——于是出现"页面是新的、卷帘逻辑还是旧的"这种最难查的组合（新版 index.html
+    # 调用新版 pianoroll.js 的方法，旧脚本里没有 → 点了按钮毫无反应）。
+    return FileResponse(
+        path,
+        media_type="text/javascript; charset=utf-8",
+        headers=dict(_NO_STORE),
+    )
 
 #: 已上传文件登记表：token → {"path": Path, "name": 原始文件名}。
 #: 进程重启会丢，但磁盘上的 ``<token>.name`` 边车文件能让我们重建它。
@@ -255,6 +264,99 @@ def stream_audio(token: str) -> FileResponse:
     if rec is None:
         raise HTTPException(status_code=404, detail="上传文件已失效，请重新选择音频")
     return _file_response(Path(rec["path"]), filename=rec["name"])
+
+
+# --------------------------------------------------------------------------
+# 钢琴卷帘试听音频 → MP3（用已有的 ffmpeg 转码）
+# --------------------------------------------------------------------------
+#: 送进来编码的试听 WAV 上限。5 分钟立体声 44.1kHz/16bit 约 50 MB，留足富余。
+MAX_ENCODE_MB = 200
+
+
+@app.post("/api/audio/mp3")
+async def audio_to_mp3(file: UploadFile = File(...)) -> Response:
+    """把浏览器渲染好的钢琴试听音频（WAV）用 ffmpeg 转成 MP3 回传。
+
+    为什么放在后端而不是浏览器里直接编码：MP3 编码器（lame）是额外的 JS/wasm 依赖，
+    还牵扯许可；而 **ffmpeg 本来就是本项目的硬依赖**（推理与解码都要用），且随包/系统
+    版本一般都带 ``libmp3lame``。这样前端零新增依赖，导出的是标准的 192kbps MP3。
+    """
+    import subprocess
+    import tempfile
+
+    ff = config.ffmpeg_path()
+    if not ff:
+        raise HTTPException(
+            status_code=503,
+            detail="找不到 ffmpeg，无法导出 MP3（推理与解码也要用它，请先安装并确保在 PATH 上）",
+        )
+
+    limit = MAX_ENCODE_MB * 1024 * 1024
+    data = bytearray()
+    try:
+        while True:
+            chunk = await file.read(1024 * 1024)
+            if not chunk:
+                break
+            data.extend(chunk)
+            if len(data) > limit:
+                raise HTTPException(status_code=413, detail=f"音频超过上限（{MAX_ENCODE_MB} MB）")
+    except HTTPException:
+        raise
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"读取上传音频失败：{exc}") from exc
+    finally:
+        await file.close()
+
+    if not data:
+        raise HTTPException(status_code=400, detail="音频内容为空")
+
+    # 文件名：去掉任何目录成分与非法字符，防止路径穿越 / 响应头注入
+    name = Path(file.filename or "melody.wav").name
+    safe_stem = "".join(c for c in Path(name).stem if c not in '\\/:*?"<>|\r\n').strip()[:80] or "melody"
+
+    config.TMP_DIR.mkdir(parents=True, exist_ok=True)
+    tmpdir = Path(tempfile.mkdtemp(prefix="s2mp3_", dir=str(config.TMP_DIR)))
+    try:
+        src = tmpdir / "in.wav"
+        src.write_bytes(bytes(data))
+        dst = tmpdir / "out.mp3"
+
+        def _encode(codec: str) -> int:
+            return subprocess.run(
+                [ff, "-y", "-hide_banner", "-loglevel", "error", "-i", str(src),
+                 "-vn", "-codec:a", codec, "-b:a", "192k", str(dst)],
+                capture_output=True,
+                timeout=300,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            ).returncode
+
+        # 主流构建都带 libmp3lame；极少数精简构建没有，退回内置 mp3 编码器兜底
+        rc = _encode("libmp3lame")
+        if rc != 0 or not dst.is_file():
+            rc = _encode("mp3")
+        if rc != 0 or not dst.is_file():
+            raise HTTPException(status_code=500, detail="ffmpeg 转码失败（该 ffmpeg 可能未启用 MP3 编码）")
+
+        payload = dst.read_bytes()
+    except HTTPException:
+        raise
+    except subprocess.SubprocessError as exc:
+        raise HTTPException(status_code=500, detail=f"ffmpeg 执行失败：{exc}") from exc
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+    # 中文文件名用 RFC 5987 的 filename*，同时给一个 ASCII 兜底名
+    fallback = safe_stem.encode("ascii", "ignore").decode().strip() or "melody"
+    disposition = (
+        f'attachment; filename="{fallback}.mp3"; '
+        f"filename*=UTF-8''{quote(safe_stem)}.mp3"
+    )
+    return Response(
+        content=payload,
+        media_type="audio/mpeg",
+        headers={"Content-Disposition": disposition, **_NO_STORE},
+    )
 
 
 @app.post("/api/tasks/{task_id}/open-folder")

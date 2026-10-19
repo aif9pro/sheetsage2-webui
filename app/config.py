@@ -257,17 +257,28 @@ def ensure_ffmpeg_on_path() -> str | None:
 ensure_ffmpeg_on_path()
 
 
+def _venv_python(venv: Path) -> Path:
+    """虚拟环境里的解释器路径，按平台给 ``Scripts\\python.exe`` 或 ``bin/python``。
+
+    Windows 的 venv 把解释器放在 ``Scripts\\python.exe``，macOS/Linux 放在 ``bin/python``。
+    只用于展示 / 诊断；真正跑代码时用 ``sys.executable``，两边都正确。
+    """
+    if os.name == "nt":
+        return venv / "Scripts" / "python.exe"
+    return venv / "bin" / "python"
+
+
 def python_exe() -> Path:
     """运行本项目的解释器。
 
-    整合包内是 ``runtime/python/python.exe``（便携版，随包分发）；
-    开发机上则是 ``.venv\\Scripts\\python.exe``。 ``sys.executable`` 在两者下都正确，
-    这里只是提供一个不依赖 ``sys`` 的展示/诊断用值。
+    整合包内是 ``runtime/python/python[.exe]``（便携版，随包分发）；
+    开发机上则是 ``.venv``（Windows: ``Scripts\\python.exe``，macOS/Linux: ``bin/python``）。
+    ``sys.executable`` 在两者下都正确，这里只是提供一个不依赖 ``sys`` 的展示/诊断用值。
     """
-    bundled = RUNTIME_DIR / "python" / "python.exe"
+    bundled = RUNTIME_DIR / "python" / ("python.exe" if os.name == "nt" else "bin/python")
     if bundled.is_file():
         return bundled
-    return ROOT / ".venv" / "Scripts" / "python.exe"
+    return _venv_python(ROOT / ".venv")
 
 
 def describe_paths() -> dict[str, Any]:

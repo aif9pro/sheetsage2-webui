@@ -369,7 +369,7 @@ def _check_runtime() -> dict[str, Any]:
     bundled = config.RUNTIME_DIR / "python" / "python.exe"
     if bundled.is_file():
         return _item("runtime", "便携运行时", "ok", value="已随包提供", detail=str(bundled))
-    venv = config.ROOT / ".venv" / "Scripts" / "python.exe"
+    venv = config.python_exe()  # .venv：Windows 是 Scripts\python.exe，macOS/Linux 是 bin/python
     if venv.is_file():
         return _item("runtime", "便携运行时", "ok", value="开发机 .venv", detail=str(venv))
     return _item(
@@ -378,7 +378,8 @@ def _check_runtime() -> dict[str, Any]:
         "warn",
         value="未找到",
         detail="没有 runtime/python，也没有 .venv；会退回到系统 PATH 里的 python",
-        fix=r"运行整合包根目录的「安装依赖.bat」（轻量包）或重新解压全量整合包",
+        fix=r"运行整合包根目录的「安装依赖.bat」（轻量包）或重新解压全量整合包；"
+            r"源码方式请先建好 .venv（macOS 见 docs/macOS安装指南.md）",
     )
 
 

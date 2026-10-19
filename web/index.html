@@ -166,6 +166,67 @@ select:disabled{opacity:.45;cursor:not-allowed}
 .tp-speed input{width:80px}
 .tone-hint{font-size:11px;color:var(--text-2)}
 
+/* 简谱（③ 钢琴卷帘下方）。用「上一排点 / 数字 / 下一排点」三行等高做对齐，
+   高音点在数字上方、低音点在下方，八分/十六分音符靠数字下边的单/双下划线表示。 */
+.jp-panel{margin-top:10px;border:1px solid var(--border);border-radius:10px;background:#fff;overflow:hidden}
+.jp-head{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bg-subtle);
+         border-bottom:1px solid var(--border);font-size:12px;color:var(--text-2)}
+.jp-head b{color:var(--text-1);font-size:13px}
+/* 谱面 = 固定列宽的网格：每行 4 小节、每小节等宽、列线上下对齐。
+   这是"规整"的关键 —— 不能让小节按内容宽度自由伸缩，否则小节线参差不齐。 */
+.jp-caption{padding:10px 14px 0}
+.jp-song{text-align:center;font-weight:600;font-size:15px;color:var(--text-1)}
+.jp-meta{font-size:12px;color:var(--text-2);margin-top:3px}
+.jp-sheet{padding:8px 14px 6px;max-height:320px;overflow-y:auto;overflow-x:hidden;line-height:1}
+.jp-sys{margin-bottom:12px}
+.jp-sys:last-child{margin-bottom:2px}
+/* 一个 system = 两行声部（旋律 / 和弦），两行共用同一列宽，所以小节线上下对齐。 */
+.jp-vrow{display:flex;align-items:stretch}
+.jp-vrow+.jp-vrow{margin-top:3px}
+.jp-vname{flex:0 0 68px;max-width:68px;display:flex;flex-direction:column;align-items:flex-end;justify-content:center;
+          gap:1px;padding-right:8px;font-size:11px;color:var(--text-2);white-space:nowrap;overflow:hidden}
+/* 每排开头的歌曲时间（mm:ss），旋律/和弦两行共享同一个时间点 */
+.jp-time{font-size:10px;line-height:12px;font-weight:600;color:var(--primary);font-variant-numeric:tabular-nums}
+.jp-vname-text{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.jp-grid{flex:1;display:grid;min-width:0}
+.jp-cell{display:flex;align-items:flex-end;min-width:0;
+         min-height:56px;padding:6px 8px;border-left:1.5px solid var(--border)}
+.jp-grid>.jp-cell:last-child{border-right:1.5px solid var(--border)}
+/* 和弦行：按时间在小节内的百分比绝对定位，和上面的旋律共用同一条小节线 */
+.jp-cchord{display:block;position:relative;min-height:24px;padding:2px 0}
+/* 和弦光标用**青色**，与旋律的紫色光标区分；padding 恒定，切换高亮不改变文字位置。 */
+.jp-chord{position:absolute;top:2px;font-size:13px;font-weight:600;color:var(--primary);white-space:nowrap;
+          padding:1px 5px;border-radius:5px;margin-left:-5px}
+.jp-chord.on{background:#0d9488;color:#fff;box-shadow:0 0 0 2px #0d9488}
+.jp-tok{display:inline-flex;align-items:flex-end;border-radius:5px;padding:0;flex:0 1 auto}
+.jp-tok.on{background:var(--primary-weak);box-shadow:0 0 0 2px var(--primary-weak)}
+/* 高亮**只能改不参与布局的属性**（颜色/背景/阴影）。以前这里还写了 font-weight:600：
+   数字一加粗宽度就变 → space-around 把整个小节重新分布 → 光标每走一步谱面就左右抖，
+   看起来就是"谱子重叠 / 倒放"。 */
+.jp-tok.on .jp-num{color:var(--primary)}
+.jp-n{display:inline-flex;flex-direction:column;align-items:center;margin:0 1.5px;min-width:0}
+.jp-up,.jp-dn{height:11px;line-height:11px;font-size:9px;letter-spacing:1px;color:var(--primary)}
+.jp-num{display:inline-block;font-size:17px;line-height:20px;padding:0 1px;color:var(--text-1);
+        font-variant-numeric:tabular-nums}
+.jp-num.u1{border-bottom:1.5px solid currentColor}
+.jp-num.u2{border-bottom:3.5px double currentColor}
+.jp-aug{font-size:17px;line-height:20px}
+.jp-stack{display:inline-flex;flex-direction:column;align-items:center}
+/* 钢琴键盘模拟区（深色，和上方的浅色谱面形成对比） */
+.pv{border-top:1px solid var(--border);background:#15151c;padding:8px 12px 12px}
+.pv-head{display:flex;align-items:center;gap:10px;color:#d8d7e3;font-size:12px;margin-bottom:6px;flex-wrap:wrap}
+.pv-head b{font-size:13px;color:#fff}
+.pv-hint{color:#8a8998;font-size:11px}
+.pv-legend{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#aaa9b8;margin-left:auto}
+.pv-sw{width:9px;height:9px;border-radius:2px;display:inline-block}
+.pv-sw.mel{background:#3b82f6}
+.pv-sw.ch{background:#f59e0b}
+#pianoView{display:block;width:100%;height:190px;border-radius:8px}
+.jp-player{display:flex;align-items:center;gap:10px;padding:8px 12px;border-top:1px solid var(--border);
+           background:var(--bg-subtle);flex-wrap:wrap}
+.jp-player .seek{min-width:100px}
+.jp-legend{padding:0 14px 10px;font-size:11px;color:var(--text-2)}
+
 /* ==================== ③ 钢琴卷帘 ====================
    网格线三档层次：小节线 > 拍线 > 细分线。三档的颜色/粗细集中在这里改，
    组件的 JS 只负责给线挂 pr-gl-bar / pr-gl-beat / pr-gl-sub 三个类名。 */
@@ -433,7 +494,43 @@ body[data-busy="1"] .lockable{opacity:.55;pointer-events:none}
         <span class="tp-time" id="tpTime">0:00</span>
         <div class="tp-speed"><input type="range" id="tpSpeed" min="50" max="150" value="100"><span id="tpSpeedLabel">100% (BPM)</span></div>
         <div class="tp-speed" title="试听音量"><span>音量</span><input type="range" id="tpVol" min="0" max="200" value="100"><span id="tpVolLabel">100%</span></div>
+        <button class="btn sm" id="tpExport" disabled title="把这段试听音频导出为 MP3（用 ffmpeg 转码）">导出 MP3</button>
+        <button class="btn sm" id="jpExport" disabled title="把当前轨道的音符转成简谱（1234567）">导出简谱</button>
         <span class="tone-hint" id="toneHint">可试听（离线大钢琴音色）</span>
+      </div>
+      <!-- 简谱区：就在钢琴卷帘（含播放条）下方。内容由当前轨道的音符实时生成。 -->
+      <div class="jp-panel" id="jpPanel" hidden>
+        <div class="jp-head">
+          <b id="jpTitle">简谱</b>
+          <span class="spacer"></span>
+          <button class="btn sm" id="jpPng">下载图片</button>
+          <button class="btn sm" id="jpDl">下载 .txt</button>
+          <button class="btn sm" id="jpClose">关闭</button>
+        </div>
+        <!-- 曲名 + 调号/拍号/速度，照简谱惯例放在谱面上方 -->
+        <div class="jp-caption">
+          <div class="jp-song" id="jpSong"></div>
+          <div class="jp-meta" id="jpMeta"></div>
+        </div>
+        <div class="jp-sheet" id="jpSheet"></div>
+        <div class="jp-legend" id="jpLegend"></div>
+        <!-- 钢琴键盘模拟：底部键盘 + 音符自上而下落向琴键，和卷帘/简谱同一份数据、同一个时钟 -->
+        <div class="pv">
+          <div class="pv-head">
+            <b>钢琴键盘</b>
+            <span class="pv-hint">音符落下时按下亮起的琴键 · 跟着练</span>
+            <span class="pv-legend"><i class="pv-sw mel"></i>旋律　<i class="pv-sw ch"></i>和弦</span>
+          </div>
+          <canvas id="pianoView"></canvas>
+        </div>
+        <!-- 简谱下方的播放条：与上方走带条是**同一路音频**（同一份钢琴渲染、同一套
+             Web Audio），只是方便在谱子旁边直接放；播放时上面的记号会跟着高亮滚动。 -->
+        <div class="jp-player">
+          <button class="tp-btn tp-play" id="jpPlay" title="播放/暂停（与上方走带条同一路音频）">▶</button>
+          <div class="seek" id="jpSeek"><i id="jpFill"></i></div>
+          <span class="tp-time" id="jpTime">0:00</span>
+          <div class="tp-speed" title="音量（与上方音量同步）"><span>音量</span><input type="range" id="jpVol" min="0" max="200" value="100"><span id="jpVolLabel">100%</span></div>
+        </div>
       </div>
     </div>
   </section>
@@ -477,6 +574,8 @@ const S = {
   filter:{voices:{vocal:true, ins:false, chords:false}, dropIntroOutro:false},
   // 试听数据来自卷帘（notesSig 用来判断卷帘是否真的换了，从而作废已渲染的钢琴音频）
   playback:null, notesSig:"",
+  jianpu:null, jpMarks:null, jpActive:-1, jpCursor:0, jpChordMarks:null, jpChordActive:-1,
+  pianoNotes:null, pianoChords:null, pianoRange:null,
   rollShownOnce:false, es:null,
 };
 const STAGES = ["加载模型","读取音频","识别音乐","生成乐谱","完成"];
@@ -546,6 +645,7 @@ async function upload(file){
 function resetFile(){
   S.token=null; S.fileName=""; S.fileSize=0; S.duration=null;
   S.notesSig=""; resetPiano();          // 换文件时清掉试听状态，避免残留上一首
+  $("#jpPanel").hidden=true; S.jianpu=null;
   $("#fileWrap").style.display="none"; $("#dropzone").style.display="block";
   refreshButtons();
 }
@@ -622,6 +722,8 @@ function refreshButtons(){
   const hasOut = S.state==="done" && S.result;
   $("#dlSvp").disabled = !hasOut; $("#dlMidi").disabled = !hasOut; $("#openDir").disabled = !hasOut;
   $("#tpPlay").disabled = !hasOut;
+  $("#tpExport").disabled = !hasOut;
+  $("#jpExport").disabled = !hasOut;
   // 清理缓存是破坏性动作：跑任务时直接禁用（后端也会 409 兜一道）
   $("#btnClean").disabled = busy;
 }
@@ -784,6 +886,7 @@ function bindStartButtons(){
 /* 结果落地 */
 function onResult(t){
   const r=t.result; S.result=r;
+  $("#jpPanel").hidden=true; S.jianpu=null;   // 换了一批结果，旧简谱作废
   if(!r) return;
   $("#overview").style.opacity=1;
   $("#mKey").textContent=r.key_cn||"—";
@@ -1155,15 +1258,22 @@ function syncVoicesFromResult(r){
    一份"不合并连音线"的音符表才能对齐）。ABC 文本框与五线谱已经删掉，现在直接交给卷帘。 */
 function clearHighlight(){
   if(roll) roll.clearPlaying();
+  clearJianpuHighlight();
+  // 简谱播放条的播放/暂停图标跟主走带条保持一致（停止时不刷新会一直停在 ❚❚）
+  const jp=$("#jpPlay"); if(jp) jp.textContent=$("#tpPlay").textContent;
 }
 function highlightAt(seconds){
+  lastPlaySec=seconds;                 // 记住播放位置，暂停时用它续播（见 stopMelody）
   if(roll) roll.setPlayhead(seconds);
+  highlightJianpu(seconds);
+  syncJpPlayer(seconds);
+  drawPianoView(seconds);
 }
 
 /* 试听：Web Audio 加法合成钢琴音色（离线，不联网，不依赖音色库） */
 let actx=null, melodyNodes=[], melodyOffset=0, melodyTimer=null, melodyPlaying=false,
-    melodyBus=null, melodyStartT=0, tpSource=null, tpGain=null, tpLimiter=null,
-    pianoData=null, pianoPromise=null, tpRate=1;
+    melodyBus=null, melodyStartT=0, tpSource=null, tpGain=null, tpLimiter=null, lastPlaySec=0,
+    pianoData=null, pianoPromise=null, tpRate=1, jpAllowBack=false;
 //: 试听音量再提升 8 dB（用户实测需求）
 const PIANO_BOOST = Math.pow(10, 8/20);   // ≈2.512
 
@@ -1227,6 +1337,11 @@ async function loadPlayback(){
   S.playback = notes.length ? {notes, duration} : null;
   if(!notes.length){ log("试听：当前卷帘没有音符"); return; }
   log(`试听就绪：${notes.length} 个音符 / ${duration.toFixed(1)}s（来源：钢琴卷帘）`);
+  // 简谱区开着的时候，音符一改就跟着刷新（和试听 / MP3 用同一份卷帘数据）
+  if(!$("#jpPanel").hidden){
+    const m=buildJianpu();
+    if(m){ S.jianpu=m; renderJianpu(m); }
+  }
 }
 /* 换曲子 / 改谱面后，之前渲染好的钢琴音频必须作废 */
 function resetPiano(){
@@ -1244,6 +1359,9 @@ function stopMelody(){
   if(tpLimiter){ try{ tpLimiter.disconnect(); }catch{} tpLimiter=null; }
   melodyNodes.forEach(n=>{ try{ n.stop(); }catch{} }); melodyNodes=[];
   if(melodyTimer) cancelAnimationFrame(melodyTimer); melodyTimer=null;
+  // 暂停时把当前位置记下来，恢复播放才能接着放。以前这里不记 → 恢复时会从
+  // 「上一次 seek 的位置」重头开始，表现就是谱面光标与进度条突然往回跳一大截。
+  if(melodyPlaying && isFinite(lastPlaySec)) melodyOffset=lastPlaySec;
   melodyPlaying=false; $("#tpPlay").textContent="▶"; if(roll) roll.setPlaying(false);
   clearHighlight();
 }
@@ -1320,7 +1438,9 @@ async function playWithPiano(from){
     const p=Math.max(0,Math.min(1,cur/total));
     $("#tpFill").style.width=(p*100)+"%"; $("#tpTime").textContent=fmt(cur);
     highlightAt(cur);
-    if(cur>=total){ stopMelody(); melodyOffset=0; $("#tpFill").style.width="0%"; $("#tpTime").textContent="0:00"; return; }
+    if(cur>=total){ stopMelody(); melodyOffset=0;
+      $("#tpFill").style.width="0%"; $("#tpTime").textContent="0:00";
+      $("#jpFill").style.width="0%"; $("#jpTime").textContent="0:00"; return; }
     melodyTimer=requestAnimationFrame(tick);
   };
   tick();
@@ -1351,7 +1471,9 @@ function playWithSynth(){
     const p=Math.max(0,Math.min(1,cur/total));
     $("#tpFill").style.width=(p*100)+"%"; $("#tpTime").textContent=fmt(cur);
     highlightAt(cur);
-    if(cur>=total){ stopMelody(); melodyOffset=0; $("#tpFill").style.width="0%"; $("#tpTime").textContent="0:00"; return; }
+    if(cur>=total){ stopMelody(); melodyOffset=0;
+      $("#tpFill").style.width="0%"; $("#tpTime").textContent="0:00";
+      $("#jpFill").style.width="0%"; $("#jpTime").textContent="0:00"; return; }
     melodyTimer=requestAnimationFrame(tick);
   };
   tick();
@@ -1370,6 +1492,773 @@ $("#tpPlay").onclick=async()=>{
     $("#toneHint").textContent="音色加载失败，已改用合成音色";
   }
   playWithSynth();
+};
+
+/* ==================== 导出试听音频为 MP3 ====================
+   复用 buildPiano() 已经渲染好的那条 AudioBuffer —— 也就是你耳朵听到的同一段钢琴音频。
+   在浏览器里把它编成 16bit WAV，再 POST 给后端用 ffmpeg 转 MP3。
+   为什么不在浏览器里直接编 MP3：需要一个额外的 lame 编码器（体积 + 许可），
+   而 ffmpeg 本来就是本项目的硬依赖、且带 libmp3lame，前端不用再塞东西。 */
+function audioBufferToWav(buffer, gain){
+  const ch=buffer.numberOfChannels, sr=buffer.sampleRate, len=buffer.length;
+  const bytes=44+len*ch*2;
+  const dv=new DataView(new ArrayBuffer(bytes));
+  const w=(s,o)=>{ for(let i=0;i<s.length;i++) dv.setUint8(o+i,s.charCodeAt(i)); };
+  w("RIFF",0); dv.setUint32(4,bytes-8,true); w("WAVE",8);
+  w("fmt ",12); dv.setUint32(16,16,true); dv.setUint16(20,1,true); dv.setUint16(22,ch,true);
+  dv.setUint32(24,sr,true); dv.setUint32(28,sr*ch*2,true); dv.setUint16(32,ch*2,true); dv.setUint16(34,16,true);
+  w("data",36); dv.setUint32(40,len*ch*2,true);
+  const g=Number.isFinite(gain)?gain:1;
+  const chans=[]; for(let c=0;c<ch;c++) chans.push(buffer.getChannelData(c));
+  let o=44;
+  for(let i=0;i<len;i++){
+    for(let c=0;c<ch;c++){
+      let s=chans[c][i]*g;
+      s=s<-1?-1:(s>1?1:s);
+      dv.setInt16(o, s<0?s*0x8000:s*0x7fff, true); o+=2;
+    }
+  }
+  return new Blob([dv.buffer],{type:"audio/wav"});
+}
+async function exportMp3(){
+  const btn=$("#tpExport");
+  if(btn.disabled) return;
+  if(!S.playback?.notes?.length){ toast("暂无可导出的音频","err"); return; }
+  const old=btn.textContent; btn.disabled=true; btn.textContent="导出中…";
+  try{
+    let data;
+    try{ data=await buildPiano(); }              // 没渲染过就现渲染（与试听同一条路径）
+    catch(e){ toast("钢琴音色渲染失败，无法导出："+e.message,"err"); return; }
+    // 导出用"归一化后的原始渲染"（data.gain），不叠加试听时的 +8dB 与音量滑块——
+    // 免得导出一个削波、且音量随滑块忽大忽小的文件。
+    const wav=audioBufferToWav(data.buffer, data.gain);
+    log(`导出 MP3：时长 ${data.buffer.duration.toFixed(1)}s，WAV ${(wav.size/1048576).toFixed(1)}MB，交给 ffmpeg 转码…`);
+    const fd=new FormData(); fd.append("file", wav, chordBase()+".wav");
+    const resp=await fetch("/api/audio/mp3",{method:"POST",body:fd});
+    if(!resp.ok){
+      let msg=String(resp.status);
+      try{ const j=await resp.json(); if(j && j.detail) msg=j.detail; }catch{}
+      throw new Error(msg);
+    }
+    const blob=await resp.blob();
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a"); a.href=url; a.download=chordBase()+".mp3";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 6000);
+    log(`已导出 ${a.download}（${(blob.size/1024).toFixed(0)} KB）`);
+    toast("已导出 "+a.download);
+  }catch(e){
+    toast("导出 MP3 失败："+e.message,"err");
+  }finally{
+    btn.disabled=false; btn.textContent=old;
+  }
+}
+$("#tpExport").onclick=exportMp3;
+
+/* ==================== 简谱（1234567）输出 ====================
+   数据来源：卷帘**当前轨**的音符（音高 + 起止秒），与试听 / MP3 同一口径，
+   所以改完音符立刻反映到简谱里，不用等后端再跑一遍。
+
+   约定：
+   * 1 = 调性主音。小调按中文简谱惯例记成「1 = 关系大调」（主音落在 6 上）。
+   * 数字上/下的点 = 高/低八度，点数 = 偏离基准八度的数量（基准取全曲中位音区）。
+   * 节奏走卷帘的「秒 ↔ 谱面位置」换算，**变速曲也准**，不是拿一个 BPM 硬乘。
+   * 同一起点的多个音记成和弦（上下叠写）；≥十六分音符的空隙补休止符 0。 */
+const J_PC={C:0,"C#":1,Db:1,D:2,"D#":3,Eb:3,E:4,F:5,"F#":6,Gb:6,G:7,"G#":8,Ab:8,A:9,"A#":10,Bb:10,B:11};
+const J_NAME=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+const J_MAJOR=[0,2,4,5,7,9,11];
+/* 节奏候选：[拍数, 下划线数, 附点]（1 拍 = 四分音符） */
+const J_RHY=[[0.25,2,0],[0.375,2,1],[0.5,1,0],[0.75,1,1],[1,0,0],[1.5,0,1],[2,0,0],[3,0,0],[4,0,0]];
+
+/** 调性字符串（"D#:major" / "Cm"）→ "do" 的音级 0-11；小调折算成关系大调。 */
+function jianpuOne(key){
+  const s=String(key||"").trim();
+  const m=s.match(/([A-Ga-g])([#b]?)/);
+  if(!m) return 0;
+  let pc=J_PC[m[1].toUpperCase()+(m[2]||"")];
+  if(pc==null) pc=J_PC[m[1].toUpperCase()]||0;
+  const minor=/minor|min/i.test(s) || /^[A-Ga-g][#b]?m$/.test(s);
+  if(minor) pc=(pc+3)%12;
+  return ((pc%12)+12)%12;
+}
+
+/** 音高 → {deg 1..7, acc ""/"♯"/"♭", oct 相对 do 的八度索引}（dots 再减去全曲基准八度）。
+    变化音按简谱习惯选拼写：只把 ♯1 / ♯4 记成升号，其余一律降号（♭3 / ♭6 / ♭7 比
+    ♯2 / ♯5 / ♯6 常用得多）。等音写法两种都对，这里只是挑看着顺眼的那个。 */
+function jianpuDegree(pitch, one){
+  const rel=pitch-one, oct=Math.floor(rel/12), pc=rel-oct*12;
+  for(let i=0;i<7;i++) if(J_MAJOR[i]===pc) return {deg:i+1, acc:"", oct:oct};
+  for(let i=0;i<7;i++) if(J_MAJOR[i]===pc-1 && (i+1===1 || i+1===4)) return {deg:i+1, acc:"♯", oct:oct};
+  for(let i=0;i<7;i++) if(J_MAJOR[i]===pc+1) return {deg:i+1, acc:"♭", oct:oct};
+  for(let i=0;i<7;i++) if(J_MAJOR[i]===pc-1) return {deg:i+1, acc:"♯", oct:oct};
+  return {deg:1, acc:"♯", oct:oct};
+}
+
+/** 拍数 → 记谱元（下划线数 / 附点 / 延长线数）。 */
+function jianpuRhythm(beats){
+  let best=J_RHY[4], bd=1e9;
+  for(const r of J_RHY){ const d=Math.abs(r[0]-beats); if(d<bd){ bd=d; best=r; } }
+  let under=best[1], dot=best[2], dash=(best[0]>=2)?(Math.round(best[0])-1):0;
+  if(beats>4.5){ under=0; dot=0; dash=Math.max(1,Math.round(beats)-1); }
+  return {under:under, dot:dot, dash:dash};
+}
+
+/** 极简 HTML 转义（曲名 / 和弦名来自数据，别让它们破坏结构）。 */
+function escHtml(s){
+  return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+}
+/** 秒 → mm:ss（两位补零）。简谱每排开头的时间标注用它。 */
+function jpTimeText(sec){
+  const t=Math.max(0,Math.round(Number(sec)||0));
+  const m=Math.floor(t/60), s=t%60;
+  return String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");
+}
+/** SheetSage2 的和弦标签（"C:min7"）→ 流行谱习惯写法（"Cm7"）。 */
+function prettyChord(label){
+  const s=String(label||"").trim();
+  if(!s || /^N$/i.test(s)) return "";
+  const i=s.indexOf(":");
+  if(i<0) return s;
+  const root=s.slice(0,i), q=s.slice(i+1).toLowerCase();
+  if(!q || q==="maj" || q==="major") return root;
+  if(q==="min" || q==="minor" || q==="m") return root+"m";
+  if(q==="maj7" || q==="major7") return root+"maj7";
+  if(q==="min7" || q==="minor7") return root+"m7";
+  if(q.startsWith("min")) return root+"m"+q.slice(3);   // min9 → m9
+  return root+q;                                        // maj9 / dim / aug / sus4 …
+}
+
+/** 从卷帘当前轨生成简谱模型（页面渲染与 .txt 导出共用）。 */
+function buildJianpu(){
+  if(!roll || !S.result) return null;
+  // 卷帘接口做了**存在性兜底**：万一浏览器缓存了旧的 pianoroll.js（没有这几个新方法），
+  // 简谱退化成"按 BPM 估算节奏 + 用第一条轨"，而不是直接抛异常点了没反应。
+  const tracks=(roll.getTracks ? roll.getTracks() : []) || [];
+  const tr=tracks[roll.activeTrackIndex ? roll.activeTrackIndex() : 0];
+  if(!tr || !tr.notes || !tr.notes.length) return null;
+  const r=S.result, one=jianpuOne(r.key), bpm=Number(r.bpm_int)||120;
+  const ms=(roll.getMeasures ? roll.getMeasures() : []) || [];
+  // 谱面位置（全音符）：有小节表就走真实换算；没有才退回按 BPM 估算（1 全音符 = 4 拍）
+  const posOf = (ms.length && roll.secToPos) ? (sec)=>roll.secToPos(sec) : (sec)=>sec*bpm/240;
+  const notes=tr.notes.map(n=>({pitch:n.pitch, p0:posOf(n.start), p1:posOf(n.end)}))
+                      .sort((a,b)=>a.p0-b.p0 || a.pitch-b.pitch);
+  const octs=notes.map(n=>Math.floor((n.pitch-one)/12)).sort((a,b)=>a-b);
+  const refOct=octs[Math.floor(octs.length/2)]||0;
+  let bars;
+  if(ms.length){
+    bars=ms.map(m=>({s:m.score_start, e:m.score_end, tokens:[]}));
+  }else{
+    const mtr=String(r.meter||"4/4").split("/");
+    const barWhole=Math.max(1,(Number(mtr[0])||4))/4;         // 小节长度（全音符）
+    const end=Math.max.apply(null, notes.map(n=>n.p1).concat([barWhole]));
+    bars=[]; for(let i=0, n=Math.ceil(end/barWhole); i<n; i++) bars.push({s:i*barWhole, e:(i+1)*barWhole, tokens:[]});
+  }
+  const barOf=(p)=>{ for(const b of bars) if(p>=b.s-1e-9 && p<b.e-1e-9) return b; return bars[bars.length-1]; };
+  // 和弦行：来自分析结果（chord.lab），按**秒**落到同一个小节网格上；
+  // frac = 在小节内的相对位置（0..1），渲染时用它把和弦名摆到正确的拍上。
+  bars.forEach(b=>{ b.chords=[]; });
+  const chordSrc=(S.result && Array.isArray(S.result.chords)) ? S.result.chords : [];
+  chordSrc.slice().sort((a,b)=>a.start-b.start).forEach(c=>{
+    const label=prettyChord(c.label); if(!label) return;
+    const p=posOf(c.start), b=barOf(p), span=Math.max(1e-6,b.e-b.s);
+    b.chords.push({
+      label:label,
+      frac:Math.max(0,Math.min(0.98,(p-b.s)/span)),
+      t0:Number(c.start)||0,
+      t1:Number(c.end)||0,
+    });
+  });
+  const EPS=1e-4;
+  for(let i=0;i<notes.length;){
+    const b=barOf(notes[i].p0);
+    const grp=[notes[i]];
+    let j=i+1;
+    while(j<notes.length && barOf(notes[j].p0)===b && Math.abs(notes[j].p0-notes[i].p0)<EPS){ grp.push(notes[j]); j++; }
+    const p0=notes[i].p0, p1=Math.max.apply(null, grp.map(g=>g.p1));
+    const last=b.tokens[b.tokens.length-1];
+    const startedAt=last?last.p1:b.s;
+    // 只有 ≥十六分音符的空隙才算休止，免得演奏抖动碎成一片 0
+    if(p0-startedAt>=0.125-EPS){
+      b.tokens.push(Object.assign({rest:true, p0:startedAt, p1:p0}, jianpuRhythm((p0-startedAt)*4)));
+    }
+    b.tokens.push(Object.assign({
+      notes:grp.map(g=>{ const d=jianpuDegree(g.pitch, one); return {deg:d.deg, acc:d.acc, dots:d.oct-refOct}; }),
+      p0:p0, p1:p1,
+    }, jianpuRhythm(Math.max(0.02, p1-p0)*4)));
+    i=j;
+  }
+  // 每个记号标上秒区间：播放时按当前时间点亮对应记号（位置 → 秒走卷帘的真实换算）
+  const toSec=(ms.length && roll.posToSec) ? (p)=>roll.posToSec(p) : (p)=>p*240/bpm;
+  bars.forEach(b=>{
+    b.t0=toSec(b.s);                                  // 这一小节的起始秒（排头时间标注用）
+    b.tokens.forEach(t=>{ t.t0=toSec(t.p0); t.t1=toSec(t.p1); });
+  });
+  return {one:one, refOct:refOct, bars:bars, track:tr.display||tr.voice||"",
+          notes:tr.notes.map(n=>({pitch:n.pitch, start:Number(n.start)||0, end:Number(n.end)||0})),
+          key:r.key||"", keyCn:r.key_cn||"", meter:r.meter||"", bpm:bpm};
+}
+
+/** 一个记谱元 → HTML（上点 / 数字或和弦 / 下点 / 附点 / 延长线）。 */
+function jianpuCellHtml(t){
+  const nums=[]; let upMax=0, dnMax=0;
+  if(t.rest){
+    nums.push('<span class="jp-num'+(t.under?" u"+t.under:"")+'">0</span>');
+  }else{
+    t.notes.forEach(n=>{
+      nums.push('<span class="jp-num'+(t.under?" u"+t.under:"")+'">'+n.acc+n.deg+'</span>');
+      if(n.dots>0) upMax=Math.max(upMax,n.dots); else if(n.dots<0) dnMax=Math.max(dnMax,-n.dots);
+    });
+  }
+  const stack=nums.length>1 ? '<span class="jp-stack">'+nums.join("")+'</span>' : nums[0];
+  const dotRow=(cls,k)=>'<span class="'+cls+'">'+(k>0?"•".repeat(k):"")+'</span>';
+  let html='<span class="jp-n">'+dotRow("jp-up",upMax)+stack+dotRow("jp-dn",dnMax)+'</span>';
+  if(t.dot) html+='<span class="jp-n"><span class="jp-up"></span><span class="jp-num">.</span><span class="jp-dn"></span></span>';
+  for(let k=0;k<(t.dash||0);k++) html+='<span class="jp-n"><span class="jp-up"></span><span class="jp-num">–</span><span class="jp-dn"></span></span>';
+  return html;
+}
+
+const JP_LABEL_W=68;  // 左侧声部名的固定宽度（器乐旋律 / 和弦）
+function renderJianpu(model){
+  let k=0;
+  // 1) 列宽：把每个小节按"不换行"的自然宽度实际量一遍，取最大值作为统一列宽。
+  let cellMin=170;
+  try{
+    const probe=document.createElement("div");
+    probe.style.cssText="position:absolute;left:-99999px;top:0;visibility:hidden;width:max-content";
+    document.body.appendChild(probe);
+    let maxW=0;
+    model.bars.forEach(b=>{
+      probe.innerHTML=b.tokens.map(t=>'<span class="jp-tok">'+jianpuCellHtml(t)+'</span>').join("");
+      maxW=Math.max(maxW,probe.offsetWidth);
+    });
+    probe.remove();
+    cellMin=Math.max(170,Math.ceil(maxW)+17);   // + 小节左右 padding
+  }catch(e){ /* 量不到就退回 170px */ }
+
+  // 2) 一行放几个：按可用宽度算，**放不下就换到下一排**，不再横向滚动。
+  const sheet=$("#jpSheet");
+  const avail=Math.max(220,(sheet?sheet.clientWidth:1000)-28-JP_LABEL_W-2);
+  // 简谱惯例每排 4 小节（4/4 即每 4 拍一条小节线）；内容特别宽时再退到 3 / 2 / 1。
+  const perRow=Math.max(1,Math.min(4,Math.floor(avail/cellMin)));
+
+  // 3) 每个 system = 两行：器乐旋律（当前轨）+ 和弦；两行共用同一列宽，小节线上下对齐。
+  const systems=[];
+  const trackName=model.track||"旋律";
+  for(let i=0;i<model.bars.length;i+=perRow){
+    const mel=[], cho=[];
+    model.bars.slice(i,i+perRow).forEach(b=>{
+      // flex-grow 按时值加权：长音占更宽、十六分音符之间更紧 —— 这是简谱的正常间距规则
+      const inner=b.tokens.map(t=>{
+        const beats=Math.max(0.25,(t.p1-t.p0)*4);
+        return '<span class="jp-tok" data-i="'+(k++)+'" style="flex-grow:'+beats.toFixed(2)+'">'+jianpuCellHtml(t)+'</span>';
+      }).join("");
+      mel.push('<div class="jp-cell">'+inner+'</div>');
+      const chords=(b.chords||[]).map(c=>
+        '<span class="jp-chord" data-t0="'+c.t0+'" data-t1="'+c.t1+'" style="left:'+
+        (Math.min(c.frac,0.86)*100).toFixed(2)+'%">'+escHtml(c.label)+'</span>').join("");
+      cho.push('<div class="jp-cell jp-cchord">'+chords+'</div>');
+    });
+    while(mel.length<perRow){ mel.push('<div class="jp-cell"></div>'); cho.push('<div class="jp-cell jp-cchord"></div>'); }
+    systems.push(
+      '<div class="jp-sys">'
+      +'<div class="jp-vrow"><span class="jp-vname" title="'+escHtml(trackName)+'">'
+      +'<span class="jp-time">'+jpTimeText(model.bars[i].t0)+'</span>'
+      +'<span class="jp-vname-text">'+escHtml(trackName)+'</span></span>'
+      +'<div class="jp-grid" style="grid-template-columns:repeat('+perRow+',1fr)">'+mel.join("")+'</div></div>'
+      +'<div class="jp-vrow"><span class="jp-vname">和弦</span>'
+      +'<div class="jp-grid" style="grid-template-columns:repeat('+perRow+',1fr)">'+cho.join("")+'</div></div>'
+      +'</div>');
+  }
+  sheet.innerHTML=systems.join("");
+  // 建高亮索引：播放每帧用当前秒数找「最后一个已经开始、且还没结束」的记号
+  const toks=[].concat.apply([], model.bars.map(b=>b.tokens));
+  const els=sheet.querySelectorAll(".jp-tok");
+  S.jpMarks=toks.map((t,i)=>({t0:t.t0, t1:t.t1, el:els[i]||null}));
+  S.jpActive=-1; S.jpCursor=0;
+  S.jpChordMarks=[...sheet.querySelectorAll(".jp-chord")].map(el=>({
+    t0:Number(el.dataset.t0)||0, t1:Number(el.dataset.t1)||0, el:el,
+  }));
+  S.jpChordActive=-1;
+  $("#jpTitle").textContent="简谱"+(model.track?(" · "+model.track):"");
+  $("#jpSong").textContent=chordBase();          // 曲名照简谱惯例居中放谱面上方
+  $("#jpMeta").textContent=`1 = ${J_NAME[model.one]}　${model.meter||"—"}　♩≈${model.bpm}　·　原调 ${model.keyCn||model.key||"—"}`;
+  $("#jpLegend").textContent="数字上/下点 = 高/低八度　下划线 = 八分/十六分　· = 附点　– = 延长　0 = 休止";
+}
+
+/** 把光标放到第 k 个记号上（k<0 = 熄灭）。
+ *  每次都先**清掉所有** .on 再点亮一个 —— 双保险，杜绝"同一位置叠着两个高亮"。 */
+function setJpActive(k){
+  if(k===S.jpActive) return;
+  S.jpActive=k;
+  const box=$("#jpSheet"); if(!box) return;
+  box.querySelectorAll(".jp-tok.on").forEach(el=>el.classList.remove("on"));
+  const marks=S.jpMarks||[];
+  if(k<0 || !marks[k] || !marks[k].el) return;
+  marks[k].el.classList.add("on");
+  followJp(marks[k].el);
+}
+
+/** 和弦行跟着同一个时间走：点亮当前和弦（只改背景，不动布局）。 */
+function highlightJpChord(sec){
+  const ms=S.jpChordMarks;
+  if(!ms || !ms.length) return;
+  let k=-1;
+  for(let i=0;i<ms.length;i++){ if(sec+0.001>=ms[i].t0) k=i; else break; }
+  if(k>=0 && sec>ms[k].t1) k=-1;
+  if(k===S.jpChordActive) return;
+  if(S.jpChordActive>=0 && ms[S.jpChordActive]) ms[S.jpChordActive].el.classList.remove("on");
+  S.jpChordActive=k;
+  if(k>=0) ms[k].el.classList.add("on");
+}
+
+/** 让当前记号留在可视区里。用"相对当前位置微调"，不设 `scroll-behavior:smooth`
+ *  —— 每帧写 scrollTop + 平滑动画会互相追赶，看起来就是画面来回跳。 */
+function followJp(el){
+  const box=$("#jpSheet"); if(!box) return;
+  const oldTop=box.scrollTop;
+  const br=box.getBoundingClientRect(), er=el.getBoundingClientRect();
+  const top=er.top-br.top;
+  const mid=box.clientHeight*0.5;
+  // 光标一旦越过**中间行**，就把谱面往上滚，让光标停在中间 —— 保证光标位置不超过中间行。
+  if(top>mid) box.scrollTop+=top-mid;
+  else if(top<8) box.scrollTop+=top-8;        // 往回 seek 时贴回顶部
+  // 播放中的自动跟随**只许向前**：绝不让谱面自己往回滚（否则看起来像倒放）。
+  // 手动拖动不在 followJp 里，不受影响；真正的往回 seek 会置 jpAllowBack。
+  if(melodyPlaying && !jpAllowBack && box.scrollTop<oldTop) box.scrollTop=oldTop;
+}
+
+/* 简谱是**静态**谱面：播放时它只应该像一根单向光标那样往前走。
+   所以这里**不是**每帧重新查表（时间上任何微小回退都会让查表结果跳回上一个音，
+   表现就是"光标回退"），而是从上次的光标位置开始**只向后推进**；
+   只有真正的 seek（时间明显回退）才从头重定位。 */
+const JP_BACK_EPS=0.25;   // 回退超过这个秒数才算"用户真的跳回去了"，否则当作播放抖动
+function highlightJianpu(sec){
+  const marks=S.jpMarks;
+  if(!marks || !marks.length) return;
+  let k=(S.jpCursor==null || S.jpCursor<0 || S.jpCursor>=marks.length) ? 0 : S.jpCursor;
+  jpAllowBack=false;
+  if(sec<marks[k].t0-JP_BACK_EPS){ jpAllowBack=true; k=0; }        // 真回退（seek）→ 从头重定位
+  // 到达某个记号的**结束点**就算它唱完了，游标往后挪（正好落在音头时点亮的是新音）
+  while(k<marks.length && sec>=marks[k].t1-1e-6) k++;
+  S.jpCursor=k;
+  // 留 80ms 前瞻：刚启动/恢复时音频时钟比谱面位置略早，不给容差会闪一帧
+  setJpActive((k<marks.length && sec>=marks[k].t0-0.08)?k:-1);
+  highlightJpChord(sec);
+}
+function clearJianpuHighlight(){
+  const box=$("#jpSheet");
+  if(box) box.querySelectorAll(".jp-tok.on,.jp-chord.on").forEach(el=>el.classList.remove("on"));
+  S.jpActive=-1;
+  S.jpChordActive=-1;
+}
+
+/** 简谱下方播放条与上方走带条同步（图标 / 进度 / 时间）。播放时每帧由 highlightAt 调。 */
+function syncJpPlayer(cur){
+  if($("#jpPanel").hidden) return;
+  const total = pianoData ? pianoData.buffer.duration : (S.playback ? S.playback.duration : 0);
+  if(total>0) $("#jpFill").style.width=(Math.max(0,Math.min(1,cur/total))*100)+"%";
+  $("#jpTime").textContent=fmt(cur);
+  $("#jpPlay").textContent=$("#tpPlay").textContent;
+}
+
+/* ==================== 钢琴键盘模拟（Synthesia 风格） ====================
+   底部键盘 + 音符自上而下落向琴键，按下时琴键亮起。
+   数据 = 当前轨道的音符（与卷帘、简谱同源），时间 = 同一套播放时钟。 */
+const PV_LOOKAHEAD=4.0;   // 视野里提前显示几秒
+function pvIsWhite(p){
+  const pc=((p%12)+12)%12;
+  return pc===0||pc===2||pc===4||pc===5||pc===7||pc===9||pc===11;
+}
+function pvRange(){
+  const ns=(S.pianoNotes||[]).concat(S.pianoChords||[]);
+  if(!ns.length) return [48,72];
+  let lo=Infinity, hi=-Infinity;
+  ns.forEach(n=>{ if(n.pitch<lo) lo=n.pitch; if(n.pitch>hi) hi=n.pitch; });
+  if(hi-lo<24){ const mid=(lo+hi)/2; lo=Math.floor(mid)-12; hi=Math.ceil(mid)+12; }
+  return [Math.max(21,lo-1), Math.min(108,hi+1)];
+}
+
+/** 和弦名（"C:min7"）→ 和弦音的音级（0..11）：根音 + 三音 / 五音 / 七音。 */
+function chordTones(label){
+  const s=String(label||"").trim();
+  const m=s.match(/^([A-Ga-g])([#b]?)(?::([A-Za-z0-9]+))?/);
+  if(!m) return [];
+  const root=J_PC[m[1].toUpperCase()+(m[2]||"")];
+  if(root==null) return [];
+  const q=(m[3]||"").toLowerCase();
+  let iv=[0,4,7];
+  if(q.includes("dim")) iv=[0,3,6];
+  else if(q.includes("aug")) iv=[0,4,8];
+  else if(q.includes("sus4")) iv=[0,5,7];
+  else if(q.includes("sus2")) iv=[0,2,7];
+  else if(q.includes("min")||q==="m") iv=[0,3,7];
+  if(q.includes("maj7")) iv=iv.concat([11]);
+  else if(q.includes("7")) iv=iv.concat([10]);
+  else if(q.includes("6")) iv=iv.concat([9]);
+  return iv.map(i=>(((root+i)%12)+12)%12);
+}
+
+/** 把一个音级放到离 ref 最近的八度，让和弦音落在旋律音区附近。 */
+function placePitch(pc, ref){
+  const base=ref-(((ref%12)+12)%12);
+  let p=base+pc;
+  while(p-ref>6) p-=12;
+  while(ref-p>6) p+=12;
+  return Math.max(21,Math.min(108,p));
+}
+
+function buildPianoChords(chords, melody){
+  const ps=(melody||[]).map(n=>n.pitch).sort((a,b)=>a-b);
+  const ref=ps.length?ps[Math.floor(ps.length/2)]:60;
+  const out=[];
+  (chords||[]).forEach(c=>{
+    const t0=Number(c.start)||0, t1=Number(c.end)||0;
+    if(!(t1>t0)) return;
+    chordTones(c.label).forEach(pc=>{ out.push({pitch:placePitch(pc,ref), start:t0, end:t1}); });
+  });
+  return out;
+}
+
+function drawPianoView(sec){
+  const cv=$("#pianoView");
+  if(!cv || !S.pianoNotes || !S.pianoNotes.length || $("#jpPanel").hidden) return;
+  const W=Math.max(120,cv.clientWidth||800), H=190;
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+  if(cv.width!==Math.round(W*dpr) || cv.height!==Math.round(H*dpr)){
+    cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
+  }
+  const ctx=cv.getContext("2d");
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.fillStyle="#15151c"; ctx.fillRect(0,0,W,H);
+
+  const KEY_H=Math.max(46,Math.min(64,H*0.33));
+  const kbY=H-KEY_H;
+  const [lo,hi]=S.pianoRange||(S.pianoRange=pvRange());
+  const whites=[];
+  for(let p=lo;p<=hi;p++) if(pvIsWhite(p)) whites.push(p);
+  if(!whites.length) return;
+  const ww=W/whites.length, bw=ww*0.62;
+  const wi={}; whites.forEach((p,i)=>{ wi[p]=i; });
+  const keyX=(p)=>{
+    if(pvIsWhite(p)) return (wi[p]+0.5)*ww;
+    const left=wi[p-1]!==undefined?wi[p-1]:wi[p+1]-1;
+    return (left+1)*ww;
+  };
+
+  // 当前按下的音：旋律 / 和弦分开统计（琴键颜色也要区分）
+  const melActive=new Set(), chActive=new Set();
+  S.pianoNotes.forEach(n=>{ if(sec>=n.start-1e-6 && sec<n.end-1e-6) melActive.add(n.pitch); });
+  (S.pianoChords||[]).forEach(n=>{ if(sec>=n.start-1e-6 && sec<n.end-1e-6) chActive.add(n.pitch); });
+
+  // 正在落下的音符：底边=起点，顶边=终点；随播放时间向下移动
+  const topH=kbY-6;
+
+  // 和弦音：琥珀色、半透明，画在旋律后面（先画）
+  (S.pianoChords||[]).forEach(n=>{
+    if(n.end<=sec || n.start>sec+PV_LOOKAHEAD) return;
+    const isW=pvIsWhite(n.pitch);
+    const x=keyX(n.pitch), w=isW?ww*0.52:bw*0.62;
+    const yStart=kbY-Math.max(0,n.start-sec)/PV_LOOKAHEAD*topH;
+    const yEnd=kbY-Math.max(0,n.end-sec)/PV_LOOKAHEAD*topH;
+    const y0=Math.min(kbY,yStart);
+    const y1=Math.max(0,Math.min(y0,yEnd));
+    const h=Math.max(3,y0-y1);
+    const on=chActive.has(n.pitch);
+    ctx.globalAlpha=on?0.9:0.42;
+    ctx.fillStyle=on?"#f59e0b":"#d97706";
+    if(ctx.roundRect){
+      ctx.beginPath(); ctx.roundRect(x-w/2,y1,w,h,Math.min(4,w/2)); ctx.fill();
+    }else{
+      ctx.fillRect(x-w/2,y1,w,h);
+    }
+    ctx.globalAlpha=1;
+  });
+  S.pianoNotes.forEach(n=>{
+    if(n.end<=sec || n.start>sec+PV_LOOKAHEAD) return;
+    const isW=pvIsWhite(n.pitch);
+    const x=keyX(n.pitch), w=isW?ww*0.82:bw*0.9;
+    const yStart=kbY-Math.max(0,n.start-sec)/PV_LOOKAHEAD*topH;
+    const yEnd=kbY-Math.max(0,n.end-sec)/PV_LOOKAHEAD*topH;
+    const y0=Math.min(kbY,yStart);
+    const y1=Math.max(0,Math.min(y0,yEnd));
+    const h=Math.max(3,y0-y1);
+    const on=melActive.has(n.pitch);
+    ctx.fillStyle=on?"#14b8a6":"#3b82f6";
+    if(ctx.roundRect){
+      ctx.beginPath(); ctx.roundRect(x-w/2,y1,w,h,Math.min(5,w/2)); ctx.fill();
+    }else{
+      ctx.fillRect(x-w/2,y1,w,h);
+    }
+    if(h>=18){
+      const d=jianpuDegree(n.pitch, S.jianpu?S.jianpu.one:0);
+      ctx.fillStyle="#fff";
+      ctx.font='600 12px "PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif';
+      ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.fillText(d.acc+d.deg, x, y0-10);
+    }
+  });
+
+  // 键盘：白键
+  whites.forEach((p,i)=>{
+    const on=melActive.has(p), ch=!on && chActive.has(p);
+    ctx.fillStyle=on?"#7ee7dd":(ch?"#fcd34d":"#f4f4f0");
+    ctx.fillRect(i*ww,kbY,ww-0.6,KEY_H);
+    ctx.strokeStyle="#c9c9c4"; ctx.lineWidth=0.8;
+    ctx.strokeRect(i*ww,kbY,ww-0.6,KEY_H);
+  });
+  // 键盘：黑键
+  for(let p=lo;p<=hi;p++){
+    if(pvIsWhite(p)) continue;
+    const x=keyX(p), on=melActive.has(p), ch=!on && chActive.has(p);
+    ctx.fillStyle=on?"#14b8a6":(ch?"#f59e0b":"#1d1d24");
+    ctx.fillRect(x-bw/2,kbY,bw,KEY_H*0.6);
+  }
+  ctx.strokeStyle="rgba(255,255,255,.18)"; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(0,kbY); ctx.lineTo(W,kbY); ctx.stroke();
+}
+
+/** 一个音（或休止 0）→ 纯文本音高记号：升降号 + 数字 + 高低八度 ' / , */
+function jianpuPitchText(n){
+  let s=n.acc+(n.deg===0?"0":n.deg);
+  if(n.dots>0) s+="'".repeat(n.dots); else if(n.dots<0) s+=",".repeat(-n.dots);
+  return s;
+}
+/** 节奏记号：下划线（八分 / 十六分）、附点、延长线。**和弦整体加一次**，不逐音重复。 */
+function jianpuRhythmText(t){
+  let s="";
+  if(t.under===1) s+="_"; else if(t.under===2) s+="__";
+  if(t.dot) s+=".";
+  for(let k=0;k<(t.dash||0);k++) s+=" -";
+  return s;
+}
+function jianpuText(model){
+  const head=[
+    `简谱${model.track?(" · "+model.track):""}`,
+    `1 = ${J_NAME[model.one]}　（原调 ${model.keyCn||model.key||"—"}）　拍号 ${model.meter||"—"}　♩≈${model.bpm}`,
+    `记号：数字后 ' / , = 高/低八度；_ = 八分音符，__ = 十六分音符；. = 附点；- = 延长；0 = 休止；[ ] = 和弦同时音`,
+  ];
+  const chordLine=[];
+  model.bars.forEach(b=>(b.chords||[]).forEach(c=>chordLine.push(`${fmt(c.t0)} ${c.label}`)));
+  if(chordLine.length) head.push("和弦：" + chordLine.join(" | "));
+  head.push("");
+  const bars=model.bars.map(b=>{
+    const body=b.tokens.map(t=>{
+      if(t.rest) return jianpuPitchText({acc:"",deg:0,dots:0})+jianpuRhythmText(t);
+      if(t.notes.length>1) return "["+t.notes.map(jianpuPitchText).join(" ")+"]"+jianpuRhythmText(t);
+      return jianpuPitchText(t.notes[0])+jianpuRhythmText(t);
+    }).join(" ");
+    return "| "+body;
+  });
+  const lines=[];
+  for(let i=0;i<bars.length;i+=4) lines.push(bars.slice(i,i+4).join(" ")+" |");
+  return head.concat(lines).join("\n")+"\n";
+}
+
+/* ==================== 简谱整份导出为 PNG ====================
+   不引 html2canvas 之类的库：直接按同一套排版规则用 Canvas 重画一遍。
+   好处是导出的是**整首**（所有 system），不受面板滚动/可视区域限制；
+   也不会有 foreignObject 在 Safari 上画不出、或被 taint 的坑。 */
+function drawJpToken(ctx,t,x,y,slotW,font,ink,dot,hline,numsOf){
+  const nums=numsOf(t);
+  ctx.font=font;
+  let numW=0; nums.forEach(s=>{ numW=Math.max(numW,ctx.measureText(s).width); });
+  const dotW=t.dot?14:0, dashW=(t.dash||0)*22;
+  const total=numW+dotW+dashW;
+  const sx=x+Math.max(0,(slotW-total)/2);
+  const n=nums.length, lh=30;
+  const bottomY=y+(n-1)/2*lh;
+  ctx.textAlign="left"; ctx.textBaseline="middle";
+  nums.forEach((s,i)=>{
+    const yy=y+(i-(n-1)/2)*lh;
+    ctx.fillStyle=ink; ctx.fillText(s,sx,yy);
+    const d=(t.rest||!t.notes||!t.notes[i])?0:(t.notes[i].dots||0);
+    if(d>0) for(let k=0;k<d;k++) dot(sx+numW/2,yy-17-k*7);
+    else if(d<0) for(let k=0;k<-d;k++) dot(sx+numW/2,yy+17+k*7);
+  });
+  if(t.under===1) hline(sx,bottomY+15,sx+numW,1.4);
+  else if(t.under===2){ hline(sx,bottomY+14,sx+numW,1.2); hline(sx,bottomY+17.5,sx+numW,1.2); }
+  if(t.dot) dot(sx+numW+6,bottomY);
+  for(let k=0;k<(t.dash||0);k++){
+    const dx=sx+numW+dotW+k*22;
+    hline(dx,bottomY,dx+13,1.6);
+  }
+}
+
+function drawJianpuCanvas(model){
+  const PAD=64, LABEL=110, W=1800;
+  const BG="#fff", INK="#1f2033", MUTED="#6b6c80", ACCENT="#7c4dff", BAR="#b7b3c9";
+  const FONT_NUM='500 26px "PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif';
+  const FONT_UI='400 15px "PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif';
+  const FONT_TITLE='600 30px "PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif';
+  const FONT_CHORD='600 16px "PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif';
+  const FONT_TIME='600 13px "PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif';
+
+  const mc=document.createElement("canvas").getContext("2d");
+  mc.font=FONT_NUM;
+  const numsOf=(t)=> t.rest ? ["0"] : t.notes.map(n=>n.acc+n.deg);
+  const tokenW=(t)=>{
+    let w=0; numsOf(t).forEach(s=>{ w=Math.max(w,mc.measureText(s).width); });
+    w+=(t.dot?14:0)+(t.dash||0)*22;
+    return Math.max(20,w);
+  };
+  const GAP=16;
+  const measureW=(b)=> b.tokens.reduce((a,t)=>a+tokenW(t),0)
+                      + Math.max(0,b.tokens.length-1)*GAP + 28;
+  const cellMin=Math.max(190,Math.max.apply(null,model.bars.map(measureW)));
+  const perRow=Math.max(1,Math.min(6,Math.floor((W-PAD*2-LABEL)/cellMin)));
+  const cellW=(W-PAD*2-LABEL)/perRow;
+
+  let maxStack=1;
+  model.bars.forEach(b=>b.tokens.forEach(t=>{ maxStack=Math.max(maxStack,t.rest?1:t.notes.length); }));
+  const melH=Math.max(74,maxStack*30+34), chordH=36, sysGap=16;
+  const headH=150, systems=Math.max(1,Math.ceil(model.bars.length/perRow)), legendH=44;
+  const H=PAD+headH+systems*(melH+chordH+sysGap)+legendH+PAD;
+
+  // 长曲别把画布撑爆：按像素面积降采样（2x → 1.75 → … → 1x）
+  let dpr=2;
+  while(dpr>1 && W*dpr*H*dpr>40e6) dpr=Math.max(1,dpr-0.25);
+  const canvas=document.createElement("canvas");
+  canvas.width=Math.round(W*dpr); canvas.height=Math.round(H*dpr);
+  const ctx=canvas.getContext("2d");
+  ctx.scale(dpr,dpr);
+  ctx.fillStyle=BG; ctx.fillRect(0,0,W,H);
+
+  const dot=(x,y)=>{ ctx.beginPath(); ctx.arc(x,y,2.2,0,Math.PI*2); ctx.fillStyle=INK; ctx.fill(); };
+  const hline=(x1,y,x2,w)=>{ ctx.beginPath(); ctx.moveTo(x1,y); ctx.lineTo(x2,y);
+                              ctx.strokeStyle=INK; ctx.lineWidth=w||1.4; ctx.stroke(); };
+
+  // 标题 + 调号/拍号/速度
+  ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillStyle=INK; ctx.font=FONT_TITLE;
+  ctx.fillText(chordBase(),W/2,PAD+18);
+  ctx.textAlign="left"; ctx.font=FONT_UI; ctx.fillStyle=MUTED;
+  ctx.fillText(`1 = ${J_NAME[model.one]}      ${model.meter||"—"}      ♩≈${model.bpm}      ·      原调 ${model.keyCn||model.key||"—"}`,
+               PAD,PAD+62);
+
+  const top0=PAD+headH, gridX=PAD+LABEL;
+  for(let si=0;si<systems;si++){
+    const row=model.bars.slice(si*perRow,(si+1)*perRow);
+    const y0=top0+si*(melH+chordH+sysGap);
+    // 小节线：两行都画，列线上下严格对齐
+    ctx.strokeStyle=BAR; ctx.lineWidth=1.2;
+    for(let j=0;j<=row.length;j++){
+      const x=gridX+j*cellW;
+      ctx.beginPath(); ctx.moveTo(x,y0); ctx.lineTo(x,y0+melH); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x,y0+melH+2); ctx.lineTo(x,y0+melH+chordH); ctx.stroke();
+    }
+    // 每排开头的时间（mm:ss），与页面显示一致
+    ctx.font=FONT_TIME; ctx.fillStyle=ACCENT; ctx.textAlign="right"; ctx.textBaseline="middle";
+    ctx.fillText(jpTimeText(model.bars[si*perRow].t0),gridX-14,y0+10);
+    ctx.font=FONT_UI; ctx.fillStyle=MUTED; ctx.textAlign="right"; ctx.textBaseline="middle";
+    ctx.fillText(model.track||"旋律",gridX-14,y0+melH/2);
+    ctx.fillText("和弦",gridX-14,y0+melH+chordH/2+1);
+
+    row.forEach((b,j)=>{
+      const cellX=gridX+j*cellW;
+      const n=b.tokens.length;
+      if(n){
+        const ws=b.tokens.map(tokenW);
+        const bs=b.tokens.map(t=>Math.max(0.25,(t.p1-t.p0)*4));
+        const sumW=ws.reduce((a,v)=>a+v,0), sumB=bs.reduce((a,v)=>a+v,0);
+        const free=Math.max(0,(cellW-24)-sumW-(n-1)*GAP);
+        let x=cellX+12;
+        b.tokens.forEach((t,i)=>{
+          const extra=sumB>0?free*(bs[i]/sumB):free/n;
+          drawJpToken(ctx,t,x,y0+melH/2,ws[i]+extra,FONT_NUM,INK,dot,hline,numsOf);
+          x+=ws[i]+extra+GAP;
+        });
+      }
+      (b.chords||[]).forEach(c=>{
+        ctx.font=FONT_CHORD; ctx.fillStyle=ACCENT; ctx.textAlign="left"; ctx.textBaseline="middle";
+        ctx.fillText(c.label,cellX+8+Math.min(c.frac,0.86)*(cellW-16),y0+melH+chordH/2+1);
+      });
+    });
+  }
+
+  ctx.font=FONT_UI; ctx.fillStyle=MUTED; ctx.textAlign="left"; ctx.textBaseline="middle";
+  ctx.fillText("数字上/下点 = 高/低八度     下划线 = 八分/十六分     · = 附点     – = 延长     0 = 休止",
+               PAD,top0+systems*(melH+chordH+sysGap)+22);
+  return canvas;
+}
+
+function downloadJianpuImage(){
+  if(!S.jianpu){ toast("请先生成简谱","err"); return; }
+  const btn=$("#jpPng"), old=btn.textContent;
+  btn.disabled=true; btn.textContent="生成中…";
+  try{
+    const canvas=drawJianpuCanvas(S.jianpu);
+    canvas.toBlob(blob=>{
+      btn.disabled=false; btn.textContent=old;
+      if(!blob){ toast("生成图片失败","err"); return; }
+      const name=chordBase()+"-简谱.png";
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement("a"); a.href=url; a.download=name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),6000);
+      toast("已导出 "+name);
+      log(`已导出 ${name}（${canvas.width}×${canvas.height}）`);
+    },"image/png");
+  }catch(e){
+    btn.disabled=false; btn.textContent=old;
+    toast("生成图片失败："+(e&&e.message||e),"err");
+    log("生成图片失败："+(e&&e.stack||e),"error");
+  }
+}
+
+function showJianpu(){
+  // 任何一步出错都要**看得见**（toast + 日志），绝不静默 —— "点了没反应"是最难查的。
+  try{
+    if(!roll){ toast("卷帘还没加载，先等扒谱完成","err"); return; }
+    const model=buildJianpu();
+    if(!model || !model.bars.some(b=>b.tokens.length)){
+      toast("当前轨道没有可转简谱的音符","err");
+      log("简谱：当前轨道没有音符（先确认卷帘上选中的是哪条轨）","warn");
+      return;
+    }
+    S.jianpu=model;
+    // 先显示再渲染：renderJianpu 要读 clientWidth 决定"一行放几个小节"，
+    // 隐藏状态下宽度是 0，会误判成一行只放一个。
+    $("#jpPanel").hidden=false;
+    renderJianpu(model);
+    S.pianoNotes=model.notes||[];
+    S.pianoChords=buildPianoChords((S.result&&S.result.chords)||[], S.pianoNotes);
+    S.pianoRange=null;
+    drawPianoView(lastPlaySec||0);
+    log(`简谱就绪：${model.bars.length} 小节 · 轨道「${model.track||"—"}」· 1 = ${J_NAME[model.one]}`);
+  }catch(e){
+    toast("生成简谱失败："+(e&&e.message||e),"err");
+    log("生成简谱失败："+(e&&e.stack||e),"error");
+  }
+}
+$("#jpExport").onclick=showJianpu;
+$("#jpClose").onclick=()=>{ $("#jpPanel").hidden=true; };
+$("#jpPng").onclick=downloadJianpuImage;
+// 窗口宽度变化 → 重新算"一行放几个小节"（放不下就换行，不出现横向滚动）。
+let jpResizeTimer=null;
+window.addEventListener("resize", ()=>{
+  if($("#jpPanel").hidden || !S.jianpu) return;
+  clearTimeout(jpResizeTimer);
+  jpResizeTimer=setTimeout(()=>{
+    if($("#jpPanel").hidden || !S.jianpu) return;
+    renderJianpu(S.jianpu);
+    highlightAt(lastPlaySec);          // 重排后把光标恢复到当前播放位置
+    drawPianoView(lastPlaySec);
+  },150);
+});
+// 简谱下方播放条：不另起一套音频，直接驱动上方走带条那颗按钮 —— 两条走带条永远是同一首歌、
+// 同一个进度、同一份钢琴渲染（重复实现一遍 Web Audio 迟早会和主走带条对不上）。
+$("#jpPlay").onclick=()=>{ const b=$("#tpPlay"); if(b && !b.disabled) b.click(); };
+$("#jpSeek").onclick=e=>{ if(!S.playback) return;
+  const r=e.currentTarget.getBoundingClientRect(); const p=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
+  seekToSeconds(p*(pianoData ? pianoData.buffer.duration : S.playback.duration)); };
+$("#jpVol").oninput=e=>{
+  $("#jpVolLabel").textContent=e.target.value+"%";
+  const v=$("#tpVol"); if(v){ v.value=e.target.value; v.dispatchEvent(new Event("input")); }
+};
+$("#jpDl").onclick=()=>{
+  if(!S.jianpu){ toast("请先生成简谱","err"); return; }
+  const name=chordBase()+"-简谱.txt";
+  downloadText(name, jianpuText(S.jianpu), "text/plain");
+  log("已导出 "+name);
 };
 $("#tpSpeed").oninput=e=>{
   $("#tpSpeedLabel").textContent=e.target.value+"% (BPM)";
@@ -1402,7 +2291,7 @@ function seekToSeconds(sec){
   const wasPlaying=melodyPlaying;
   melodyOffset=t;
   $("#tpFill").style.width=((t/total)*100)+"%"; $("#tpTime").textContent=fmt(t);
-  if(roll) roll.setPlayhead(t);
+  highlightAt(t);          // 走同一套高亮：卷帘播放头 + 简谱记号一起跳
   if(wasPlaying){ stopMelody(); $("#tpPlay").click(); }
 }
 

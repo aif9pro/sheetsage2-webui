@@ -313,6 +313,9 @@ class TaskManager:
                 bufsize=1,
                 env=env,
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+                # POSIX（macOS/Linux）：让 worker 自成一个进程组，
+                # 这样 stop() 里的 os.killpg 只杀 worker 那一棵，不会连坐杀掉服务进程本身。
+                start_new_session=(os.name != "nt"),
             )
         except OSError as exc:
             task.error = f"无法启动子进程：{exc}"
