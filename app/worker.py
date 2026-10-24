@@ -71,7 +71,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--export-voices",
         default=None,
         help=(
-            "要导出的内容，逗号分隔：vocal,ins,chords（默认 vocal）。"
+            "要导出的内容，逗号分隔：vocal,ins,chords（默认 ins,chords）。"
             "对应前端 ③ 的三个勾选「人声主旋律 / 器乐旋律 / 和弦」——勾什么导什么。"
         ),
     )

@@ -360,8 +360,8 @@ def select_roll_tracks(
 #: 可选的导出内容，与前端 ③ 的三个勾选一一对应：#: 人声主旋律 / 器乐旋律 / 和弦。**勾什么导什么，完全由用户决定。**
 EXPORT_VOICE_TOKENS = ("vocal", "ins", "chords")
 
-#: 默认只勾"人声主旋律"（用户 2026-09-15 定的默认）
-DEFAULT_EXPORT_VOICES = ("vocal",)
+#: 默认勾选"器乐旋律 + 和弦"（用户 2026-10-24 定的默认）
+DEFAULT_EXPORT_VOICES = ("ins", "chords")
 
 #: 声部名 → 这三个 token 之一
 _VOICE_KIND = {

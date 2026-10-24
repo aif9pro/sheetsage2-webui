@@ -120,7 +120,7 @@ def filter_abc(
     elif only_melody is not None:
         wanted = {"vocal"} if only_melody else {"vocal", "ins"}
     else:
-        wanted = {"vocal"}          # 默认只留人声主旋律（与前端默认勾选一致）
+        wanted = {"ins"}            # 默认保留器乐旋律（和弦由 chords.mid 单独导出）
 
     def _keep_voice(name: str) -> bool:
         kind = _voice_kind(name)

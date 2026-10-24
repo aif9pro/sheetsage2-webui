@@ -204,6 +204,12 @@ select:disabled{opacity:.45;cursor:not-allowed}
 .jp-cell{display:flex;align-items:flex-end;min-width:0;
          min-height:56px;padding:6px 8px;border-left:1.5px solid var(--border)}
 .jp-grid>.jp-cell:last-child{border-right:1.5px solid var(--border)}
+.jp-lyricrow{margin-top:1px}
+.jp-lyric-cell{position:relative;align-items:flex-start;min-height:31px;padding:7px 8px 5px;
+               border-top:1px solid rgba(139,92,246,.13)}
+.jp-lyric-char{position:absolute;top:7px;transform:translateX(-50%);font-size:13px;line-height:17px;
+               color:var(--text-2);white-space:nowrap;pointer-events:none;transition:color .12s}
+.jp-lyric-char.on{color:var(--danger);text-shadow:0 0 12px rgba(239,68,68,.78)}
 /* 和弦行：按时间在小节内的百分比绝对定位，和上面的旋律共用同一条小节线 */
 .jp-cchord{display:block;position:relative;min-height:24px;padding:2px 0}
 /* 和弦光标用**青色**，与旋律的紫色光标区分；padding 恒定，切换高亮不改变文字位置。 */
@@ -542,6 +548,9 @@ select:focus,.adv-grid input:focus{outline:none;border-color:rgba(34,211,238,.7)
   box-shadow:0 0 0 1px rgba(139,92,246,.55),0 0 18px rgba(139,92,246,.28)}
 .jp-tok.on .jp-num{color:#C4B5FD}
 .jp-chord{color:var(--cyan)}
+.jp-lyric-cell{border-top-color:rgba(139,92,246,.20)}
+.jp-lyric-char{color:#ABA8C2}
+.jp-lyric-char.on{color:#FB7185;text-shadow:0 0 13px rgba(251,113,133,.92)}
 .jp-chord.on{background:#0D9488;color:#fff;
   box-shadow:0 0 0 1px #2DD4BF,0 0 18px rgba(45,212,191,.4)}
 .jp-player{background:rgba(255,255,255,.03);border-top-color:rgba(255,255,255,.08)}
@@ -915,8 +924,8 @@ button,.filter-chip,.seg button,.pr-track{touch-action:manipulation}
         <div class="pv">
           <div class="pv-head">
             <b>钢琴键盘</b>
-            <span class="pv-hint">音符落下时按下亮起的琴键 · 跟着练</span>
-            <span class="pv-legend"><i class="pv-sw mel"></i>旋律　<i class="pv-sw ch"></i>和弦</span>
+            <span class="pv-hint">音符落下时按下亮起的琴键 · 键下数字为当前调简谱音级</span>
+            <span class="pv-legend"><i class="pv-sw ch"></i>和弦·左　<i class="pv-sw mel"></i>旋律·右</span>
           </div>
           <canvas id="pianoView"></canvas>
         </div>
@@ -968,11 +977,12 @@ const S = {
   uploading:false, uploadXhr:null,
   taskId:null, state:"idle",
   result:null, chords:[],
-  // ③ 的三个勾选：**勾什么导什么**。默认只勾「人声主旋律」（用户 2026-09-15 定）
-  filter:{voices:{vocal:true, ins:false, chords:false}, dropIntroOutro:false},
+  // ③ 的三个勾选：**勾什么导什么**。默认勾选「器乐旋律 + 和弦」。
+  filter:{voices:{vocal:false, ins:true, chords:true}, dropIntroOutro:false},
   // 试听数据来自卷帘（notesSig 用来判断卷帘是否真的换了，从而作废已渲染的钢琴音频）
   playback:null, notesSig:"",
   jianpu:null, jpMarks:null, jpActive:-1, jpCursor:0, jpChordMarks:null, jpChordActive:-1,
+  timelineLyrics:null, jpLyricMarks:null, jpLyricActive:-1,
   pianoNotes:null, pianoChords:null, pianoRange:null,
   rollShownOnce:false, es:null,
 };
@@ -1242,7 +1252,7 @@ function paintWave(){
    状态统一存在 `S.filter.voices`，`syncFilterChips()` 负责把 chip 的 on 态同步过去。
    这三个勾选同时决定四件事：编辑器里的 ABC、试听放哪些声部、
    提交给后端的 `export_voices`、以及**导出的轨道数** —— 勾什么就导什么，由用户决定。
-   默认只勾「人声主旋律」（2026-09-15 用户定的）。
+   默认勾选「器乐旋律 + 和弦」（2026-10-24 用户定的）。
 
    历史（别再走回头路）：
    * 2026-09-14 —— 它以前是 ① 上方一行「仅主旋律乐谱」+ ③ 里一个「过滤 V: Ins」两套状态，
@@ -1434,7 +1444,7 @@ function bindStartButtons(){
 /* 结果落地 */
 function onResult(t){
   const r=t.result; S.result=r;
-  $("#jpPanel").hidden=true; S.jianpu=null;   // 换了一批结果，旧简谱作废
+  $("#jpPanel").hidden=true; S.jianpu=null; S.timelineLyrics=null;   // 换了一批结果，旧简谱与歌词作废
   if(!r) return;
   $("#overview").style.opacity=1;
   $("#mKey").textContent=r.key_cn||"—";
@@ -1606,7 +1616,7 @@ function selectedVoices(){ return ["vocal","ins","chords"].filter(k=>!!S.filter.
  *
  *  勾选状态存在 `S.filter.voices`，它同时决定三件事：
  *    卷帘上显示/可编辑哪些轨、提交给后端的 `export_voices`、导出的轨道数。
- *  **勾什么就导什么 —— 由用户决定**（2026-09-15 用户定的默认：只勾人声主旋律）。
+ *  **勾什么就导什么 —— 由用户决定**（2026-10-24 用户定的默认：器乐旋律 + 和弦）。
  *
  *  改动（旧版是"删掉 ABC 里另一个声部"）：现在勾选只影响**读取与导出**，
  *  不再动任何文本。所以切换勾选不会再"丢弃手动修改"，也就不需要确认框。
@@ -1630,8 +1640,8 @@ $$(".filter-chip").forEach(chip=>chip.onclick=()=>{
   const kind=chip.dataset.voice; if(!kind) return;
   toggleVoice(kind, !S.filter.voices[kind]);
 });
-// 首屏必须同步一次：HTML 里 chip 不带 on 态，默认「只勾人声主旋律」靠这一行画出来。
-// 少了它，页面看起来一个都没勾，实际提交的却是 export_voices=["vocal"] —— UI 与行为脱节。
+// 首屏必须同步一次：HTML 里 chip 不带 on 态，默认「器乐旋律 + 和弦」靠这一行画出来。
+// 少了它，页面看起来一个都没勾，实际提交状态却和 UI 脱节。
 syncFilterChips();
 
 /* ==================== ③ 钢琴卷帘（渲染与交互在 web/pianoroll.js） ====================
@@ -1710,13 +1720,20 @@ function refitRoll(){
 async function loadRoll(){
   const inst=ensureRoll();
   if(!inst) return;
-  if(!S.taskId){ setRollState("扒谱完成后，这里显示可编辑的钢琴卷帘"); inst.load({tracks:[]}); return; }
+  if(!S.taskId){
+    S.timelineLyrics=null;
+    setRollState("扒谱完成后，这里显示可编辑的钢琴卷帘");
+    inst.load({tracks:[]});
+    return;
+  }
   setRollState("正在读取卷帘数据…");
   try{
     const qs=new URLSearchParams({export_voices:selectedVoices().join(",")});
     const r=await fetch(`/api/tasks/${S.taskId}/roll?`+qs);
     if(!r.ok){ setRollState(`读取卷帘数据失败：HTTP ${r.status}`,"err"); return; }
     const j=await r.json();
+    S.timelineLyrics=(j.timeline_lyrics&&j.timeline_lyrics.available)
+      ? (j.timeline_lyrics.events||[]) : [];
     const warns=j.warnings||[];
     if(!j.available){
       // 原因 + 告警都摆到状态行上；只写一句"没有可用音符"用户不知道该勾哪个
@@ -1790,14 +1807,10 @@ async function reloadRoll(){
 $("#rollSave").onclick=()=>saveRoll(false);
 $("#rollReload").onclick=()=>reloadRoll();
 
-/** 按任务结果里的 export_voices 同步三个勾选（老结果只有 only_melody 时回退）。 */
+/** 页面打开、刷新或恢复旧任务时，统一应用当前默认声部。
+ *  旧任务里记录的人声默认不再反向覆盖新 UI，避免刷新后又切回「人声主旋律」。 */
 function syncVoicesFromResult(r){
-  let sel=null;
-  if(r&&Array.isArray(r.export_voices)) sel=r.export_voices;
-  else if(r&&typeof r.only_melody==="boolean") sel = r.only_melody ? ["vocal"] : ["vocal","ins","chords"];
-  if(sel){
-    S.filter.voices={vocal:sel.includes("vocal"), ins:sel.includes("ins"), chords:sel.includes("chords")};
-  }
+  S.filter.voices={vocal:false, ins:true, chords:true};
   syncFilterChips();
 }
 
@@ -1896,6 +1909,7 @@ function resetPiano(){
   stopMelody();
   pianoData=null; pianoPromise=null; melodyBus=null; tpLimiter=null;
   melodyOffset=0;
+  pvResetRetrigger();
   if(roll) roll.setPlayhead(0);
   $("#tpFill").style.width="0%"; $("#tpTime").textContent="0:00";
 }
@@ -2176,6 +2190,12 @@ function prettyChord(label){
   return root+q;                                        // maj9 / dim / aug / sus4 …
 }
 
+/** 时间轴歌词单位：中文按字、英文按词，保留标点，避免英文被逐字母拆开。 */
+function timelineLyricUnits(text){
+  const units=String(text||"").match(/[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]|[^\s\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]+/g);
+  return units||[];
+}
+
 /** 从卷帘当前轨生成简谱模型（页面渲染与 .txt 导出共用）。 */
 function buildJianpu(){
   if(!roll || !S.result) return null;
@@ -2239,11 +2259,33 @@ function buildJianpu(){
   const toSec=(ms.length && roll.posToSec) ? (p)=>roll.posToSec(p) : (p)=>p*240/bpm;
   bars.forEach(b=>{
     b.t0=toSec(b.s);                                  // 这一小节的起始秒（排头时间标注用）
+    b.t1=toSec(b.e);
+    b.lyrics=[];
     b.tokens.forEach(t=>{ t.t0=toSec(t.p0); t.t1=toSec(t.p1); });
   });
+  // timeline.yaml 只有整句起止时间；按句子时长均匀分配字符，并把每个字符放到
+  // 它所在小节的真实时间位置。跨小节 / 跨谱排时，同一句会自动拆到对应行。
+  (S.timelineLyrics||[]).forEach(ev=>{
+    const units=timelineLyricUnits(ev.text);
+    const start=Number(ev.start), end=Number(ev.end);
+    if(!units.length || !isFinite(start) || !isFinite(end) || end<=start) return;
+    const step=(end-start)/units.length;
+    units.forEach((text,i)=>{
+      const t0=start+i*step, t1=start+(i+1)*step, center=(t0+t1)/2;
+      const b=bars.find(x=>center>=x.t0-1e-6 && center<x.t1+1e-6);
+      if(!b || b.t1<=b.t0) return;
+      b.lyrics.push({
+        text:text,
+        frac:Math.max(0,Math.min(0.995,(center-b.t0)/(b.t1-b.t0))),
+        t0:t0, t1:t1,
+      });
+    });
+  });
+  bars.forEach(b=>b.lyrics.sort((a,c)=>a.t0-c.t0));
   return {one:one, refOct:refOct, bars:bars, track:tr.display||tr.voice||"",
           notes:tr.notes.map(n=>({pitch:n.pitch, start:Number(n.start)||0, end:Number(n.end)||0})),
-          key:r.key||"", keyCn:r.key_cn||"", meter:r.meter||"", bpm:bpm};
+          key:r.key||"", keyCn:r.key_cn||"", meter:r.meter||"", bpm:bpm,
+          hasLyrics:bars.some(b=>b.lyrics.length>0)};
 }
 
 /** 一个记谱元 → HTML（上点 / 数字或和弦 / 下点 / 附点 / 延长线）。 */
@@ -2289,11 +2331,12 @@ function renderJianpu(model){
   // 简谱惯例每排 4 小节（4/4 即每 4 拍一条小节线）；内容特别宽时再退到 3 / 2 / 1。
   const perRow=Math.max(1,Math.min(4,Math.floor(avail/cellMin)));
 
-  // 3) 每个 system = 两行：器乐旋律（当前轨）+ 和弦；两行共用同一列宽，小节线上下对齐。
+  // 3) 每个 system = 器乐旋律 + 和弦 + 可选歌词；各行共用同一列宽，小节线上下对齐。
   const systems=[];
   const trackName=model.track||"旋律";
+  const hasLyrics=!!model.hasLyrics;
   for(let i=0;i<model.bars.length;i+=perRow){
-    const mel=[], cho=[];
+    const mel=[], lyr=[], cho=[];
     model.bars.slice(i,i+perRow).forEach(b=>{
       // flex-grow 按时值加权：长音占更宽、十六分音符之间更紧 —— 这是简谱的正常间距规则
       const inner=b.tokens.map(t=>{
@@ -2301,12 +2344,24 @@ function renderJianpu(model){
         return '<span class="jp-tok" data-i="'+(k++)+'" style="flex-grow:'+beats.toFixed(2)+'">'+jianpuCellHtml(t)+'</span>';
       }).join("");
       mel.push('<div class="jp-cell">'+inner+'</div>');
+      const lyrics=(b.lyrics||[]).map(l=>
+        '<span class="jp-lyric-char" data-t0="'+l.t0+'" data-t1="'+l.t1+'" style="left:'+
+        (l.frac*100).toFixed(2)+'%">'+escHtml(l.text)+'</span>').join("");
+      lyr.push('<div class="jp-cell jp-lyric-cell">'+lyrics+'</div>');
       const chords=(b.chords||[]).map(c=>
         '<span class="jp-chord" data-t0="'+c.t0+'" data-t1="'+c.t1+'" style="left:'+
         (Math.min(c.frac,0.86)*100).toFixed(2)+'%">'+escHtml(c.label)+'</span>').join("");
       cho.push('<div class="jp-cell jp-cchord">'+chords+'</div>');
     });
-    while(mel.length<perRow){ mel.push('<div class="jp-cell"></div>'); cho.push('<div class="jp-cell jp-cchord"></div>'); }
+    while(mel.length<perRow){
+      mel.push('<div class="jp-cell"></div>');
+      lyr.push('<div class="jp-cell jp-lyric-cell"></div>');
+      cho.push('<div class="jp-cell jp-cchord"></div>');
+    }
+    const lyricRow=hasLyrics
+      ? '<div class="jp-vrow jp-lyricrow"><span class="jp-vname">歌词</span>'
+        +'<div class="jp-grid" style="grid-template-columns:repeat('+perRow+',1fr)">'+lyr.join("")+'</div></div>'
+      : "";
     systems.push(
       '<div class="jp-sys">'
       +'<div class="jp-vrow"><span class="jp-vname" title="'+escHtml(trackName)+'">'
@@ -2315,6 +2370,7 @@ function renderJianpu(model){
       +'<div class="jp-grid" style="grid-template-columns:repeat('+perRow+',1fr)">'+mel.join("")+'</div></div>'
       +'<div class="jp-vrow"><span class="jp-vname">和弦</span>'
       +'<div class="jp-grid" style="grid-template-columns:repeat('+perRow+',1fr)">'+cho.join("")+'</div></div>'
+      +lyricRow
       +'</div>');
   }
   sheet.innerHTML=systems.join("");
@@ -2327,10 +2383,15 @@ function renderJianpu(model){
     t0:Number(el.dataset.t0)||0, t1:Number(el.dataset.t1)||0, el:el,
   }));
   S.jpChordActive=-1;
+  S.jpLyricMarks=[...sheet.querySelectorAll(".jp-lyric-char")].map(el=>({
+    t0:Number(el.dataset.t0)||0, t1:Number(el.dataset.t1)||0, el:el,
+  })).sort((a,b)=>a.t0-b.t0);
+  S.jpLyricActive=-1;
   $("#jpTitle").textContent="简谱"+(model.track?(" · "+model.track):"");
   $("#jpSong").textContent=chordBase();          // 曲名照简谱惯例居中放谱面上方
   $("#jpMeta").textContent=`1 = ${J_NAME[model.one]}　${model.meter||"—"}　♩≈${model.bpm}　·　原调 ${model.keyCn||model.key||"—"}`;
-  $("#jpLegend").textContent="数字上/下点 = 高/低八度　下划线 = 八分/十六分　· = 附点　– = 延长　0 = 休止";
+  $("#jpLegend").textContent="数字上/下点 = 高/低八度　下划线 = 八分/十六分　· = 附点　– = 延长　0 = 休止"
+    +(hasLyrics?"　·　歌词按 timeline.yaml 时间轴对齐":"");
 }
 
 /** 把光标放到第 k 个记号上（k<0 = 熄灭）。
@@ -2356,6 +2417,18 @@ function highlightJpChord(sec){
   if(k===S.jpChordActive) return;
   if(S.jpChordActive>=0 && ms[S.jpChordActive]) ms[S.jpChordActive].el.classList.remove("on");
   S.jpChordActive=k;
+  if(k>=0) ms[k].el.classList.add("on");
+}
+
+function highlightJpLyric(sec){
+  const ms=S.jpLyricMarks;
+  if(!ms || !ms.length) return;
+  let k=-1;
+  for(let i=0;i<ms.length;i++){ if(sec+0.001>=ms[i].t0) k=i; else break; }
+  if(k>=0 && sec>ms[k].t1) k=-1;
+  if(k===S.jpLyricActive) return;
+  if(S.jpLyricActive>=0 && ms[S.jpLyricActive]) ms[S.jpLyricActive].el.classList.remove("on");
+  S.jpLyricActive=k;
   if(k>=0) ms[k].el.classList.add("on");
 }
 
@@ -2392,12 +2465,14 @@ function highlightJianpu(sec){
   // 留 80ms 前瞻：刚启动/恢复时音频时钟比谱面位置略早，不给容差会闪一帧
   setJpActive((k<marks.length && sec>=marks[k].t0-0.08)?k:-1);
   highlightJpChord(sec);
+  highlightJpLyric(sec);
 }
 function clearJianpuHighlight(){
   const box=$("#jpSheet");
-  if(box) box.querySelectorAll(".jp-tok.on,.jp-chord.on").forEach(el=>el.classList.remove("on"));
+  if(box) box.querySelectorAll(".jp-tok.on,.jp-chord.on,.jp-lyric-char.on").forEach(el=>el.classList.remove("on"));
   S.jpActive=-1;
   S.jpChordActive=-1;
+  S.jpLyricActive=-1;
 }
 
 /** 简谱下方播放条与上方走带条同步（图标 / 进度 / 时间）。播放时每帧由 highlightAt 调。 */
@@ -2413,13 +2488,21 @@ function syncJpPlayer(cur){
    底部键盘 + 音符自上而下落向琴键，按下时琴键亮起。
    数据 = 当前轨道的音符（与卷帘、简谱同源），时间 = 同一套播放时钟。 */
 const PV_LOOKAHEAD=4.0;   // 视野里提前显示几秒
+const PV_RETRIGGER_MS=180;
+const pvFlashUntil={chord:new Map(), melody:new Map()};
+let pvLastFrameSec=null;
+function pvResetRetrigger(){
+  pvLastFrameSec=null;
+  pvFlashUntil.chord.clear();
+  pvFlashUntil.melody.clear();
+}
 function pvIsWhite(p){
   const pc=((p%12)+12)%12;
   return pc===0||pc===2||pc===4||pc===5||pc===7||pc===9||pc===11;
 }
-function pvRange(){
-  const ns=(S.pianoNotes||[]).concat(S.pianoChords||[]);
-  if(!ns.length) return [48,72];
+function pvRange(notes, fallback){
+  const ns=notes||[];
+  if(!ns.length) return [Math.max(21,fallback-12),Math.min(108,fallback+12)];
   let lo=Infinity, hi=-Infinity;
   ns.forEach(n=>{ if(n.pitch<lo) lo=n.pitch; if(n.pitch>hi) hi=n.pitch; });
   if(hi-lo<24){ const mid=(lo+hi)/2; lo=Math.floor(mid)-12; hi=Math.ceil(mid)+12; }
@@ -2457,63 +2540,113 @@ function placePitch(pc, ref){
 
 function buildPianoChords(chords, melody){
   const ps=(melody||[]).map(n=>n.pitch).sort((a,b)=>a-b);
-  const ref=ps.length?ps[Math.floor(ps.length/2)]:60;
+  const melodyLow=ps.length?ps[0]:60;
+  // 左手和弦整体放在旋律最低音下方，确保同一块连续键盘上也会自然落到左区。
+  const ref=ps.length?Math.max(24,melodyLow-12):48;
   const out=[];
   (chords||[]).forEach(c=>{
     const t0=Number(c.start)||0, t1=Number(c.end)||0;
     if(!(t1>t0)) return;
-    chordTones(c.label).forEach(pc=>{ out.push({pitch:placePitch(pc,ref), start:t0, end:t1}); });
+    const name=prettyChord(c.label)||String(c.label||"");
+    chordTones(c.label).forEach(pc=>{
+      out.push({pitch:placePitch(pc,ref), start:t0, end:t1, label:name});
+    });
   });
+  const top=out.length?Math.max(...out.map(n=>n.pitch)):0;
+  if(ps.length && top>=melodyLow){
+    const shift=Math.ceil((top-(melodyLow-1))/12)*12;
+    out.forEach(n=>{ n.pitch=Math.max(21,n.pitch-shift); });
+  }
   return out;
 }
 
 function drawPianoView(sec){
   const cv=$("#pianoView");
   if(!cv || !S.pianoNotes || !S.pianoNotes.length || $("#jpPanel").hidden) return;
-  const W=Math.max(120,cv.clientWidth||800), H=190;
+  const W=Math.max(120,cv.clientWidth||800), H=Math.max(130,cv.clientHeight||190);
   const dpr=Math.min(2,window.devicePixelRatio||1);
   if(cv.width!==Math.round(W*dpr) || cv.height!==Math.round(H*dpr)){
     cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
   }
   const ctx=cv.getContext("2d");
   ctx.setTransform(dpr,0,0,dpr,0,0);
-  ctx.fillStyle="#15151c"; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle="#101018"; ctx.fillRect(0,0,W,H);
 
-  const KEY_H=Math.max(46,Math.min(64,H*0.33));
+  const KEY_H=Math.max(46,Math.min(64,H*.34));
   const kbY=H-KEY_H;
-  const [lo,hi]=S.pianoRange||(S.pianoRange=pvRange());
+  const laneTop=24, fallH=Math.max(30,kbY-laneTop);
+
+  const chords=S.pianoChords||[], melody=S.pianoNotes;
+  const chordPitches=chords.map(n=>n.pitch), melodyPitches=melody.map(n=>n.pitch);
+  const [lo,hi]=pvRange(chords.concat(melody),60);
   const whites=[];
   for(let p=lo;p<=hi;p++) if(pvIsWhite(p)) whites.push(p);
   if(!whites.length) return;
-  const ww=W/whites.length, bw=ww*0.62;
+  const ww=W/whites.length, bw=ww*.62;
   const wi={}; whites.forEach((p,i)=>{ wi[p]=i; });
   const keyX=(p)=>{
-    if(pvIsWhite(p)) return (wi[p]+0.5)*ww;
+    if(pvIsWhite(p)) return (wi[p]+.5)*ww;
     const left=wi[p-1]!==undefined?wi[p-1]:wi[p+1]-1;
     return (left+1)*ww;
   };
 
-  // 当前按下的音：旋律 / 和弦分开统计（琴键颜色也要区分）
-  const melActive=new Set(), chActive=new Set();
-  S.pianoNotes.forEach(n=>{ if(sec>=n.start-1e-6 && sec<n.end-1e-6) melActive.add(n.pitch); });
-  (S.pianoChords||[]).forEach(n=>{ if(sec>=n.start-1e-6 && sec<n.end-1e-6) chActive.add(n.pitch); });
+  const chordActive=new Set(), melodyActive=new Set();
+  chords.forEach(n=>{ if(sec>=n.start-1e-6 && sec<n.end-1e-6) chordActive.add(n.pitch); });
+  melody.forEach(n=>{ if(sec>=n.start-1e-6 && sec<n.end-1e-6) melodyActive.add(n.pitch); });
 
-  // 正在落下的音符：底边=起点，顶边=终点；随播放时间向下移动
-  const topH=kbY-6;
+  const now=performance.now();
+  const delta=pvLastFrameSec===null?null:sec-pvLastFrameSec;
+  function registerRetriggers(notes, flashes){
+    for(const [pitch,until] of flashes){ if(until<=now) flashes.delete(pitch); }
+    if(delta===null || delta<0 || delta>0.75){
+      flashes.clear();
+      notes.forEach(n=>{
+        if(n.start>=sec-.06 && n.start<=sec+1e-6) flashes.set(n.pitch,now+PV_RETRIGGER_MS);
+      });
+      return;
+    }
+    notes.forEach(n=>{
+      // 按音头触发：即使前一个同音刚结束、后一个音符紧贴着开始，也仍然会闪。
+      if(n.start>pvLastFrameSec+1e-6 && n.start<=sec+1e-6){
+        flashes.set(n.pitch,now+PV_RETRIGGER_MS);
+      }
+    });
+  }
+  registerRetriggers(chords,pvFlashUntil.chord);
+  registerRetriggers(melody,pvFlashUntil.melody);
+  pvLastFrameSec=sec;
+  const flashAlpha=(flashes,p)=>{
+    const until=flashes.get(p)||0;
+    return until>now?Math.max(0,Math.min(1,(until-now)/PV_RETRIGGER_MS)):0;
+  };
 
-  // 和弦音：琥珀色、半透明，画在旋律后面（先画）
-  (S.pianoChords||[]).forEach(n=>{
+  const splitPitch=chordPitches.length&&melodyPitches.length
+    ? (Math.max(...chordPitches)+Math.min(...melodyPitches))/2
+    : (lo+hi)/2;
+  const splitX=Math.max(12,Math.min(W-12,keyX(Math.round(splitPitch))));
+  ctx.fillStyle="rgba(245,158,11,.045)"; ctx.fillRect(0,laneTop,splitX,kbY-laneTop);
+  ctx.fillStyle="rgba(34,211,238,.035)"; ctx.fillRect(splitX,laneTop,W-splitX,kbY-laneTop);
+  ctx.font='600 12px "PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif';
+  ctx.textBaseline="middle";
+  ctx.textAlign="left"; ctx.fillStyle="#fbbf24"; ctx.fillText("和弦 · 左手",12,12);
+  ctx.textAlign="right"; ctx.fillStyle="#67e8f9"; ctx.fillText("器乐旋律 · 右手",W-12,12);
+  ctx.strokeStyle="rgba(255,255,255,.13)"; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(splitX,laneTop); ctx.lineTo(splitX,kbY); ctx.stroke();
+
+  // 同一块连续键盘：和弦因整体位于低音区自然落在左边，旋律落在右边。
+  const chordGroups=new Map();
+  chords.forEach(n=>{
     if(n.end<=sec || n.start>sec+PV_LOOKAHEAD) return;
-    const isW=pvIsWhite(n.pitch);
-    const x=keyX(n.pitch), w=isW?ww*0.52:bw*0.62;
-    const yStart=kbY-Math.max(0,n.start-sec)/PV_LOOKAHEAD*topH;
-    const yEnd=kbY-Math.max(0,n.end-sec)/PV_LOOKAHEAD*topH;
-    const y0=Math.min(kbY,yStart);
-    const y1=Math.max(0,Math.min(y0,yEnd));
-    const h=Math.max(3,y0-y1);
-    const on=chActive.has(n.pitch);
-    ctx.globalAlpha=on?0.9:0.42;
-    ctx.fillStyle=on?"#f59e0b":"#d97706";
+    const groupKey=`${n.label}|${n.start}|${n.end}`;
+    if(!chordGroups.has(groupKey)){
+      chordGroups.set(groupKey,{label:n.label,start:n.start,end:n.end,xs:[]});
+    }
+    chordGroups.get(groupKey).xs.push(keyX(n.pitch));
+    const isW=pvIsWhite(n.pitch), x=keyX(n.pitch), w=isW?ww*.62:bw*.72;
+    const y0=Math.min(kbY,kbY-Math.max(0,n.start-sec)/PV_LOOKAHEAD*fallH);
+    const y1=Math.max(laneTop,Math.min(y0,kbY-Math.max(0,n.end-sec)/PV_LOOKAHEAD*fallH));
+    const h=Math.max(3,y0-y1), on=chordActive.has(n.pitch);
+    ctx.globalAlpha=on?.92:.46; ctx.fillStyle=on?"#f59e0b":"#d97706";
     if(ctx.roundRect){
       ctx.beginPath(); ctx.roundRect(x-w/2,y1,w,h,Math.min(4,w/2)); ctx.fill();
     }else{
@@ -2521,16 +2654,33 @@ function drawPianoView(sec){
     }
     ctx.globalAlpha=1;
   });
-  S.pianoNotes.forEach(n=>{
+  // 一个和弦只显示一次名称，避免同一组多个音柱重复写相同的和弦。
+  chordGroups.forEach(g=>{
+    const left=Math.min(...g.xs), right=Math.max(...g.xs);
+    const active=sec>=g.start-1e-6 && sec<g.end-1e-6;
+    const startY=kbY-Math.max(0,g.start-sec)/PV_LOOKAHEAD*fallH;
+    ctx.font='600 13px "PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif';
+    const tw=ctx.measureText(g.label).width, bwLabel=tw+18, bh=22;
+    const x=Math.max(bwLabel/2+6,Math.min(splitX-bwLabel/2-6,(left+right)/2));
+    const y=Math.max(laneTop+bh/2,Math.min(kbY-bh/2-4,startY-bh/2-7));
+    ctx.beginPath();
+    if(ctx.roundRect) ctx.roundRect(x-bwLabel/2,y-bh/2,bwLabel,bh,7);
+    else ctx.rect(x-bwLabel/2,y-bh/2,bwLabel,bh);
+    ctx.fillStyle=active?"rgba(245,158,11,.96)":"rgba(38,29,16,.94)";
+    ctx.fill();
+    ctx.strokeStyle=active?"#fcd34d":"rgba(245,158,11,.65)";
+    ctx.lineWidth=active?1.5:1;
+    ctx.stroke();
+    ctx.fillStyle=active?"#201600":"#fcd34d";
+    ctx.textAlign="center"; ctx.textBaseline="middle";
+    ctx.fillText(g.label,x,y+.5);
+  });
+  melody.forEach(n=>{
     if(n.end<=sec || n.start>sec+PV_LOOKAHEAD) return;
-    const isW=pvIsWhite(n.pitch);
-    const x=keyX(n.pitch), w=isW?ww*0.82:bw*0.9;
-    const yStart=kbY-Math.max(0,n.start-sec)/PV_LOOKAHEAD*topH;
-    const yEnd=kbY-Math.max(0,n.end-sec)/PV_LOOKAHEAD*topH;
-    const y0=Math.min(kbY,yStart);
-    const y1=Math.max(0,Math.min(y0,yEnd));
-    const h=Math.max(3,y0-y1);
-    const on=melActive.has(n.pitch);
+    const isW=pvIsWhite(n.pitch), x=keyX(n.pitch), w=isW?ww*.82:bw*.9;
+    const y0=Math.min(kbY,kbY-Math.max(0,n.start-sec)/PV_LOOKAHEAD*fallH);
+    const y1=Math.max(laneTop,Math.min(y0,kbY-Math.max(0,n.end-sec)/PV_LOOKAHEAD*fallH));
+    const h=Math.max(3,y0-y1), on=melodyActive.has(n.pitch);
     ctx.fillStyle=on?"#14b8a6":"#3b82f6";
     if(ctx.roundRect){
       ctx.beginPath(); ctx.roundRect(x-w/2,y1,w,h,Math.min(5,w/2)); ctx.fill();
@@ -2538,28 +2688,64 @@ function drawPianoView(sec){
       ctx.fillRect(x-w/2,y1,w,h);
     }
     if(h>=18){
-      const d=jianpuDegree(n.pitch, S.jianpu?S.jianpu.one:0);
+      const d=jianpuDegree(n.pitch,S.jianpu?S.jianpu.one:0);
       ctx.fillStyle="#fff";
       ctx.font='600 12px "PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif';
       ctx.textAlign="center"; ctx.textBaseline="middle";
-      ctx.fillText(d.acc+d.deg, x, y0-10);
+      ctx.fillText(d.acc+d.deg,x,Math.max(laneTop+9,y0-10));
     }
   });
 
-  // 键盘：白键
+  // 一整块连续键盘，不再按手拆成两块。
   whites.forEach((p,i)=>{
-    const on=melActive.has(p), ch=!on && chActive.has(p);
-    ctx.fillStyle=on?"#7ee7dd":(ch?"#fcd34d":"#f4f4f0");
-    ctx.fillRect(i*ww,kbY,ww-0.6,KEY_H);
-    ctx.strokeStyle="#c9c9c4"; ctx.lineWidth=0.8;
-    ctx.strokeRect(i*ww,kbY,ww-0.6,KEY_H);
+    const chord=chordActive.has(p), mel=melodyActive.has(p);
+    ctx.fillStyle=mel?"#7ee7dd":(chord?"#fcd34d":"#f4f4f0");
+    ctx.fillRect(i*ww,kbY,ww-.6,KEY_H);
+    ctx.strokeStyle="#c9c9c4"; ctx.lineWidth=.8;
+    ctx.strokeRect(i*ww,kbY,ww-.6,KEY_H);
+    const flash=Math.max(flashAlpha(pvFlashUntil.chord,p),flashAlpha(pvFlashUntil.melody,p));
+    if(flash>0){
+      ctx.fillStyle=`rgba(255,255,255,${(.72*flash).toFixed(3)})`;
+      ctx.fillRect(i*ww,kbY,ww-.6,KEY_H);
+      ctx.strokeStyle=`rgba(255,255,255,${flash.toFixed(3)})`;
+      ctx.lineWidth=2;
+      ctx.strokeRect(i*ww+1,kbY+1,ww-2.6,KEY_H-2);
+    }
   });
-  // 键盘：黑键
   for(let p=lo;p<=hi;p++){
     if(pvIsWhite(p)) continue;
-    const x=keyX(p), on=melActive.has(p), ch=!on && chActive.has(p);
-    ctx.fillStyle=on?"#14b8a6":(ch?"#f59e0b":"#1d1d24");
-    ctx.fillRect(x-bw/2,kbY,bw,KEY_H*0.6);
+    const x=keyX(p), chord=chordActive.has(p), mel=melodyActive.has(p);
+    ctx.fillStyle=mel?"#14b8a6":(chord?"#f59e0b":"#1d1d24");
+    ctx.fillRect(x-bw/2,kbY,bw,KEY_H*.6);
+    const flash=Math.max(flashAlpha(pvFlashUntil.chord,p),flashAlpha(pvFlashUntil.melody,p));
+    if(flash>0){
+      ctx.fillStyle=`rgba(255,255,255,${(.72*flash).toFixed(3)})`;
+      ctx.fillRect(x-bw/2,kbY,bw,KEY_H*.6);
+      ctx.strokeStyle=`rgba(255,255,255,${flash.toFixed(3)})`;
+      ctx.lineWidth=2;
+      ctx.strokeRect(x-bw/2+1,kbY+1,bw-2,KEY_H*.6-2);
+    }
+  }
+
+  // 键下标注当前调性的简谱音级；黑白键都按实际音高换算，并保留升降号。
+  const one=S.jianpu?S.jianpu.one:0;
+  ctx.textAlign="center"; ctx.textBaseline="middle";
+  const whiteFontSize=Math.max(9,Math.min(12,ww*.42));
+  ctx.font=`600 ${whiteFontSize.toFixed(1)}px "PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif`;
+  whites.forEach((p,i)=>{
+    const d=jianpuDegree(p,one);
+    const chord=chordActive.has(p), mel=melodyActive.has(p);
+    ctx.fillStyle=mel?"#07463f":(chord?"#513000":"#777589");
+    ctx.fillText(d.acc+d.deg,i*ww+(ww-.6)/2,kbY+KEY_H-11);
+  });
+  const blackFontSize=Math.max(8,Math.min(10,bw*.44));
+  ctx.font=`600 ${blackFontSize.toFixed(1)}px "PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif`;
+  for(let p=lo;p<=hi;p++){
+    if(pvIsWhite(p)) continue;
+    const x=keyX(p), d=jianpuDegree(p,one);
+    const flash=Math.max(flashAlpha(pvFlashUntil.chord,p),flashAlpha(pvFlashUntil.melody,p));
+    ctx.fillStyle=flash>.25?"#11131b":"#c4c2d2";
+    ctx.fillText(d.acc+d.deg,x,kbY+KEY_H*.6-10);
   }
   ctx.strokeStyle="rgba(255,255,255,.18)"; ctx.lineWidth=1;
   ctx.beginPath(); ctx.moveTo(0,kbY); ctx.lineTo(W,kbY); ctx.stroke();
@@ -2639,6 +2825,7 @@ function drawJianpuCanvas(model){
   const FONT_UI='400 15px "PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif';
   const FONT_TITLE='600 30px "PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif';
   const FONT_CHORD='600 16px "PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif';
+  const FONT_LYRIC='500 18px "PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif';
   const FONT_TIME='600 13px "PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif';
 
   const mc=document.createElement("canvas").getContext("2d");
@@ -2658,9 +2845,9 @@ function drawJianpuCanvas(model){
 
   let maxStack=1;
   model.bars.forEach(b=>b.tokens.forEach(t=>{ maxStack=Math.max(maxStack,t.rest?1:t.notes.length); }));
-  const melH=Math.max(74,maxStack*30+34), chordH=36, sysGap=16;
+  const melH=Math.max(74,maxStack*30+34), lyricH=model.hasLyrics?46:0, chordH=36, sysGap=16;
   const headH=150, systems=Math.max(1,Math.ceil(model.bars.length/perRow)), legendH=44;
-  const H=PAD+headH+systems*(melH+chordH+sysGap)+legendH+PAD;
+  const rowH=melH+lyricH+chordH, H=PAD+headH+systems*(rowH+sysGap)+legendH+PAD;
 
   // 长曲别把画布撑爆：按像素面积降采样（2x → 1.75 → … → 1x）
   let dpr=2;
@@ -2685,20 +2872,25 @@ function drawJianpuCanvas(model){
   const top0=PAD+headH, gridX=PAD+LABEL;
   for(let si=0;si<systems;si++){
     const row=model.bars.slice(si*perRow,(si+1)*perRow);
-    const y0=top0+si*(melH+chordH+sysGap);
-    // 小节线：两行都画，列线上下严格对齐
+    const y0=top0+si*(rowH+sysGap);
+    const chordY=y0+melH, lyricY=y0+melH+chordH;
+    // 小节线：旋律 / 和弦 / 歌词共用同一组列线。
     ctx.strokeStyle=BAR; ctx.lineWidth=1.2;
     for(let j=0;j<=row.length;j++){
       const x=gridX+j*cellW;
-      ctx.beginPath(); ctx.moveTo(x,y0); ctx.lineTo(x,y0+melH); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(x,y0+melH+2); ctx.lineTo(x,y0+melH+chordH); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x,y0); ctx.lineTo(x,y0+rowH); ctx.stroke();
+    }
+    if(lyricH){
+      ctx.beginPath(); ctx.moveTo(gridX,y0+melH); ctx.lineTo(gridX+row.length*cellW,y0+melH);
+      ctx.moveTo(gridX,lyricY); ctx.lineTo(gridX+row.length*cellW,lyricY); ctx.stroke();
     }
     // 每排开头的时间（mm:ss），与页面显示一致
     ctx.font=FONT_TIME; ctx.fillStyle=ACCENT; ctx.textAlign="right"; ctx.textBaseline="middle";
     ctx.fillText(jpTimeText(model.bars[si*perRow].t0),gridX-14,y0+10);
     ctx.font=FONT_UI; ctx.fillStyle=MUTED; ctx.textAlign="right"; ctx.textBaseline="middle";
     ctx.fillText(model.track||"旋律",gridX-14,y0+melH/2);
-    ctx.fillText("和弦",gridX-14,y0+melH+chordH/2+1);
+    ctx.fillText("和弦",gridX-14,chordY+chordH/2+1);
+    if(lyricH) ctx.fillText("歌词",gridX-14,lyricY+lyricH/2+1);
 
     row.forEach((b,j)=>{
       const cellX=gridX+j*cellW;
@@ -2717,14 +2909,22 @@ function drawJianpuCanvas(model){
       }
       (b.chords||[]).forEach(c=>{
         ctx.font=FONT_CHORD; ctx.fillStyle=ACCENT; ctx.textAlign="left"; ctx.textBaseline="middle";
-        ctx.fillText(c.label,cellX+8+Math.min(c.frac,0.86)*(cellW-16),y0+melH+chordH/2+1);
+        ctx.fillText(c.label,cellX+8+Math.min(c.frac,0.86)*(cellW-16),chordY+chordH/2+1);
       });
+      if(lyricH){
+        ctx.font=FONT_LYRIC; ctx.fillStyle="#453a63"; ctx.textAlign="center"; ctx.textBaseline="middle";
+        (b.lyrics||[]).forEach(l=>{
+          const x=cellX+12+Math.max(0,Math.min(1,l.frac))*(cellW-24);
+          ctx.fillText(l.text,x,lyricY+lyricH/2+1);
+        });
+      }
     });
   }
 
   ctx.font=FONT_UI; ctx.fillStyle=MUTED; ctx.textAlign="left"; ctx.textBaseline="middle";
-  ctx.fillText("数字上/下点 = 高/低八度     下划线 = 八分/十六分     · = 附点     – = 延长     0 = 休止",
-               PAD,top0+systems*(melH+chordH+sysGap)+22);
+  const legend="数字上/下点 = 高/低八度     下划线 = 八分/十六分     · = 附点     – = 延长     0 = 休止"
+    +(model.hasLyrics?"     歌词按时间轴对齐":"");
+  ctx.fillText(legend,PAD,top0+systems*(rowH+sysGap)+22);
   return canvas;
 }
 
@@ -2770,6 +2970,7 @@ function showJianpu(){
     S.pianoNotes=model.notes||[];
     S.pianoChords=buildPianoChords((S.result&&S.result.chords)||[], S.pianoNotes);
     S.pianoRange=null;
+    pvResetRetrigger();
     drawPianoView(lastPlaySec||0);
     log(`简谱就绪：${model.bars.length} 小节 · 轨道「${model.track||"—"}」· 1 = ${J_NAME[model.one]}`);
   }catch(e){

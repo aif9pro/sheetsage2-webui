@@ -773,7 +773,7 @@ def _roll_source_abc(task: Any) -> Path | None:
     ⚠️ 顺序是**先全量、后过滤**，这一点踩过坑：
 
     * ``score.abc`` —— 模型的全量输出（Vocal + Ins + …）。
-    * ``score.melody.abc`` —— 推理时按**当时勾选**过滤过的版本。默认只勾人声主旋律，
+    * ``score.melody.abc`` —— 推理时按**当时勾选**过滤过的版本。默认勾选器乐旋律与和弦，
       所以这个文件里通常**只有 Vocal**；``export/<歌名>.abc`` 同理（老版本还会被手改）。
     * ``export/<歌名>.abc`` —— 老版本「乐谱编辑」保存的版本，兜底。
 
@@ -881,6 +881,92 @@ def _roll_all_tracks(task: Any) -> tuple[list[dict[str, Any]], str | None, dict[
     return merged, (stored.get("source_abc") or abc_source), header
 
 
+def _load_timeline_lyrics(task: Any) -> dict[str, Any]:
+    """读取内部时间轴里的歌词句段，供简谱歌词行按时间定位。
+
+    时间轴目前是整句级别的标注（``start_time`` / ``end_time`` 为毫秒），并非逐字
+    时间戳。前端会在这段时间内均匀分布字符；这里只负责安全读取和去除「前奏 /
+    间奏 / 尾奏」这类结构标记，不改原始 YAML。
+    """
+    root = Path(task.out_dir)
+    candidates = [
+        root / "timeline.yaml",
+        root / "timeline" / "timeline.yaml",
+        config.TMP_DIR / "timeline" / "timeline.yaml",
+    ]
+    path = next((p for p in candidates if p.is_file()), None)
+    if path is None:
+        return {"available": False, "events": [], "reason": "未找到 timeline.yaml"}
+
+    try:
+        import yaml
+
+        with path.open("r", encoding="utf-8") as fh:
+            data = yaml.safe_load(fh) or {}
+    except Exception as exc:
+        return {
+            "available": False,
+            "events": [],
+            "reason": f"读取 timeline.yaml 失败：{exc}",
+        }
+
+    rows = data.get("shot_text_list") if isinstance(data, dict) else None
+    if not isinstance(rows, list):
+        return {"available": False, "events": [], "reason": "timeline.yaml 没有 shot_text_list"}
+
+    non_lyrics = {"前奏", "间奏", "尾奏", "intro", "interlude", "outro"}
+    events: list[dict[str, Any]] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        text = str(row.get("text") or "").strip()
+        if not text or text.casefold() in non_lyrics:
+            continue
+        try:
+            start = float(row.get("start_time")) / 1000.0
+            end = float(row.get("end_time")) / 1000.0
+        except (TypeError, ValueError):
+            continue
+        if end <= start:
+            continue
+        events.append(
+            {
+                "text": text,
+                "start": round(start, 4),
+                "end": round(end, 4),
+                "speaker": row.get("speaker"),
+            }
+        )
+    events.sort(key=lambda item: (item["start"], item["end"]))
+    try:
+        source = str(path.relative_to(config.ROOT))
+    except ValueError:
+        source = path.name
+    timeline_duration = (
+        round(float(data.get("audio_duration")) / 1000.0, 4)
+        if isinstance(data, dict) and data.get("audio_duration") is not None
+        else None
+    )
+    task_duration = float((getattr(task, "result", None) or {}).get("duration") or 0.0)
+    if timeline_duration and task_duration and abs(timeline_duration - task_duration) > 2.0:
+        return {
+            "available": False,
+            "events": [],
+            "source": source,
+            "audio_duration": timeline_duration,
+            "reason": (
+                f"timeline.yaml 时长 {timeline_duration:.2f}s 与当前音频 "
+                f"{task_duration:.2f}s 不一致，未应用歌词"
+            ),
+        }
+    return {
+        "available": bool(events),
+        "events": events,
+        "source": source,
+        "audio_duration": timeline_duration,
+    }
+
+
 @app.get("/api/tasks/{task_id}/roll")
 def get_roll(
     task_id: str,
@@ -927,8 +1013,11 @@ def get_roll(
     all_tracks, source_abc, header = _roll_all_tracks(task)
     root = Path(task.out_dir)
     measures = load_measures(root)
+    timeline_lyrics = _load_timeline_lyrics(task)
 
     warnings: list[str] = []
+    if timeline_lyrics.get("reason") and timeline_lyrics.get("source"):
+        warnings.append(str(timeline_lyrics["reason"]))
     tracks: list[dict[str, Any]] = []
     for tr in select_roll_tracks(all_tracks, sel):
         tracks.append({
@@ -1000,6 +1089,7 @@ def get_roll(
             "reason": reason,
             "voices_in_score": in_score,
             "export_voices": sel,
+            "timeline_lyrics": timeline_lyrics,
             "warnings": warnings,
         })
 
@@ -1023,6 +1113,7 @@ def get_roll(
         "measures": measures,
         "export_voices": sel,
         "tracks": tracks,
+        "timeline_lyrics": timeline_lyrics,
         "warnings": warnings,
     })
 
@@ -1169,7 +1260,7 @@ def _task_export_voices(task: Any) -> list[str]:
     """任务的「导出哪些内容」意图（人声主旋律 / 器乐旋律 / 和弦）。
 
     优先用 ``params``（用户可在提交后通过保存 ABC / 导出来改主意），
-    其次用 worker 写在 ``result`` 里的快照，最后回落到默认（只要人声主旋律）。
+    其次用 worker 写在 ``result`` 里的快照，最后回落到默认（器乐旋律 + 和弦）。
     """
     params = getattr(task, "params", None) or {}
     if "export_voices" in params:
