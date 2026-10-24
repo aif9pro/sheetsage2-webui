@@ -16,7 +16,9 @@ import json
 import os
 import queue
 import shutil
+import subprocess
 import sys
+import threading
 import time
 import uuid
 import webbrowser
@@ -74,6 +76,13 @@ _uploads: dict[str, dict[str, Any]] = {}
 _env_cache: dict[str, Any] = {"at": 0.0, "data": None}
 ENV_CACHE_SECONDS = 30.0
 
+#: 外网只加载低码率试听文件；原始 WAV/FLAC 继续留给推理，避免几十 MB
+#: 的源文件经过内网穿透时把浏览器媒体连接拖到超时。
+AUDIO_PREVIEW_DIR = config.TMP_DIR / "audio_previews"
+AUDIO_PREVIEW_BITRATE = "80k"
+_PREVIEW_JOBS: dict[str, dict[str, str | None]] = {}
+_PREVIEW_JOBS_LOCK = threading.Lock()
+
 #: 本服务实际监听的端口。端口检测不能把它自己算成「被占用」，
 #: 否则服务会把自己判为环境不通过、永远拒绝开始任务。
 _self_port: int | None = None
@@ -113,6 +122,99 @@ def _upload_record(token: str) -> dict[str, Any] | None:
     return None
 
 
+def _preview_path(token: str) -> Path:
+    return AUDIO_PREVIEW_DIR / f"{token}.mp3"
+
+
+def _set_preview_job(token: str, status: str, error: str | None = None) -> None:
+    with _PREVIEW_JOBS_LOCK:
+        _PREVIEW_JOBS[token] = {"status": status, "error": error}
+
+
+def _build_audio_preview(token: str, source: Path) -> Path:
+    """把一个上传音频压成适合慢速穿透链路的试听 MP3。
+
+    80 kbps 单声道对扒谱前试听已经足够；对 6 分钟、67 MB 的 WAV 来说，
+    体积可以降到约 4 MB。编码结果按上传 token 缓存，后续 Range 请求直接读文件。
+    """
+    target = _preview_path(token)
+    if target.is_file() and target.stat().st_size > 0:
+        _set_preview_job(token, "ready")
+        return target
+
+    ff = config.ffmpeg_path()
+    if not ff:
+        raise RuntimeError("找不到 ffmpeg，无法生成在线试听音频")
+
+    AUDIO_PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
+    temp = AUDIO_PREVIEW_DIR / f".{token}.{uuid.uuid4().hex}.mp3"
+    try:
+        def encode(codec: str) -> subprocess.CompletedProcess[bytes]:
+            return subprocess.run(
+                [
+                    ff,
+                    "-y",
+                    "-hide_banner",
+                    "-loglevel",
+                    "error",
+                    "-i",
+                    str(source),
+                    "-vn",
+                    "-ac",
+                    "1",
+                    "-ar",
+                    "44100",
+                    "-codec:a",
+                    codec,
+                    "-b:a",
+                    AUDIO_PREVIEW_BITRATE,
+                    str(temp),
+                ],
+                capture_output=True,
+                timeout=300,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            )
+
+        # 常规 ffmpeg 都有 libmp3lame；极简构建没有时退回内置 mp3。
+        done = encode("libmp3lame")
+        if done.returncode != 0 or not temp.is_file():
+            temp.unlink(missing_ok=True)
+            done = encode("mp3")
+        if done.returncode != 0 or not temp.is_file() or temp.stat().st_size == 0:
+            detail = (done.stderr or b"").decode("utf-8", "replace").strip()
+            raise RuntimeError(detail[-300:] or "ffmpeg 生成试听 MP3 失败")
+        os.replace(temp, target)
+        _set_preview_job(token, "ready")
+        return target
+    finally:
+        temp.unlink(missing_ok=True)
+
+
+def _run_audio_preview_job(token: str, source: Path) -> None:
+    _set_preview_job(token, "encoding")
+    try:
+        _build_audio_preview(token, source)
+    except Exception as exc:
+        _set_preview_job(token, "error", str(exc)[:300])
+
+
+def _start_audio_preview(token: str, source: Path) -> None:
+    if _preview_path(token).is_file():
+        _set_preview_job(token, "ready")
+        return
+    with _PREVIEW_JOBS_LOCK:
+        current = _PREVIEW_JOBS.get(token)
+        if current and current.get("status") == "encoding":
+            return
+        _PREVIEW_JOBS[token] = {"status": "encoding", "error": None}
+    threading.Thread(
+        target=_run_audio_preview_job,
+        args=(token, source),
+        name=f"audio-preview-{token[:8]}",
+        daemon=True,
+    ).start()
+
+
 def _cleanup_old_uploads(max_age_hours: float = 24.0) -> int:
     """清理过期的上传临时文件（文档 4.3：任务结束后清理临时目录）。
 
@@ -126,6 +228,14 @@ def _cleanup_old_uploads(max_age_hours: float = 24.0) -> int:
             if p.is_file() and p.stat().st_mtime < cutoff:
                 p.unlink(missing_ok=True)
                 removed += 1
+    except OSError:
+        pass
+    try:
+        if AUDIO_PREVIEW_DIR.is_dir():
+            for p in AUDIO_PREVIEW_DIR.iterdir():
+                if p.is_file() and p.stat().st_mtime < cutoff:
+                    p.unlink(missing_ok=True)
+                    removed += 1
     except OSError:
         pass
     return removed
@@ -253,6 +363,51 @@ def audio_info(token: str) -> JSONResponse:
             "size": path.stat().st_size,
         }
     )
+
+
+@app.get("/api/audio/{token}/preview/info")
+def audio_preview_info(token: str) -> JSONResponse:
+    """查询轻量试听 MP3 的准备状态。
+
+    外网链路本身有数秒延迟；客户端先轮询这个小 JSON，等编码完成后再请求音频，
+    避免在慢速隧道上挂住一个长时间没有响应体的媒体请求。
+    """
+    rec = _upload_record(token)
+    if rec is None:
+        return JSONResponse({"available": False, "ready": False, "token": token})
+    source = Path(rec["path"])
+    _start_audio_preview(token, source)
+    preview = _preview_path(token)
+    if preview.is_file() and preview.stat().st_size > 0:
+        status, error = "ready", None
+    else:
+        job = _PREVIEW_JOBS.get(token) or {}
+        status = str(job.get("status") or "encoding")
+        error = job.get("error")
+    return JSONResponse(
+        {
+            "available": True,
+            "ready": status == "ready",
+            "status": status,
+            "error": error,
+            "token": token,
+        }
+    )
+
+
+@app.get("/api/audio/{token}/preview")
+def stream_audio_preview(token: str) -> FileResponse:
+    """返回缓存后的低码率试听 MP3；原始音频不改动。"""
+    rec = _upload_record(token)
+    if rec is None:
+        raise HTTPException(status_code=404, detail="上传文件已失效，请重新选择音频")
+    try:
+        path = _build_audio_preview(token, Path(rec["path"]))
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"生成试听音频失败：{exc}") from exc
+    name = f"{Path(rec['name']).stem}（试听）.mp3"
+    return _file_response(path, filename=name)
+
 
 @app.get("/api/audio/{token}")
 def stream_audio(token: str) -> FileResponse:
@@ -434,6 +589,8 @@ async def upload(file: UploadFile = File(...)) -> JSONResponse:
         (target.parent / f"{token}.name").write_text(name, encoding="utf-8")
     except OSError:
         pass
+    # 上传完成后立刻在后台压缩；用户在慢速外网刷新页面时通常已经接近完成。
+    _start_audio_preview(token, target)
     return JSONResponse(
         {
             "token": token,

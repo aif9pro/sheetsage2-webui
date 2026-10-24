@@ -56,6 +56,18 @@ body.dragging .dropzone{border-color:var(--primary);background:var(--primary-wea
 .chip .meta{min-width:0;flex:1}
 .chip .name{font-weight:500;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .chip .size{font-size:11px;color:var(--text-2);font-family:Consolas,monospace}
+.upload-progress{margin-top:8px;padding:9px 11px;border:1px solid rgba(139,92,246,.22);
+                 border-radius:10px;background:rgba(139,92,246,.055)}
+.upload-progress[hidden]{display:none}
+.upload-progress-head,.upload-progress-meta{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.upload-progress-head{font-size:11px;color:var(--text-2);margin-bottom:6px}
+.upload-progress-head strong{font:600 12px/1.2 var(--mono);color:#C4B5FD;font-variant-numeric:tabular-nums}
+.upload-progress-track{height:6px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden}
+.upload-progress-track>i{display:block;width:0;height:100%;border-radius:inherit;
+  background:linear-gradient(90deg,#8B5CF6,#22D3EE);
+  box-shadow:0 0 12px rgba(34,211,238,.45);transition:width .18s ease}
+.upload-progress-meta{margin-top:6px;font:10px/1.45 var(--mono);color:var(--text-2);
+  font-variant-numeric:tabular-nums}
 .chip .del{border:0;background:none;color:#b9b7c7;font-size:16px;cursor:pointer;padding:0 4px}
 .chip .del:hover{color:var(--danger)}
 .chip .del:disabled{opacity:.35;cursor:not-allowed}
@@ -406,10 +418,19 @@ body{
 *::-webkit-scrollbar-thumb:hover{background:rgba(139,92,246,.62);background-clip:content-box}
 
 /* ---- 页头 ---- */
-.page-head{position:relative;padding-bottom:14px;margin-bottom:20px}
+.page-head{position:relative;padding-bottom:14px;padding-right:92px;margin-bottom:20px}
 .page-head::after{content:"";display:block;width:132px;height:2px;margin-top:12px;border-radius:2px;
   background:linear-gradient(90deg,#8B5CF6,#22D3EE,transparent);
   box-shadow:0 0 16px rgba(34,211,238,.55)}
+.page-refresh{position:absolute;top:-2px;right:0;display:inline-flex;align-items:center;
+  justify-content:center;gap:6px;min-height:34px;padding:5px 12px;
+  color:#C4B5FD;background:rgba(139,92,246,.10);border-color:rgba(139,92,246,.38);
+  font-size:12px;letter-spacing:.02em}
+.page-refresh:hover:not(:disabled){color:#F4F2FF;border-color:rgba(34,211,238,.62);
+  background:rgba(34,211,238,.09);box-shadow:0 0 20px rgba(34,211,238,.16)}
+.page-refresh .refresh-icon{display:inline-block;font-size:16px;line-height:1}
+.page-refresh.is-loading .refresh-icon{animation:refreshSpin .7s linear infinite}
+@keyframes refreshSpin{to{transform:rotate(360deg)}}
 .eyebrow{display:inline-flex;align-items:center;gap:8px;margin-bottom:9px;
   font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#7DD3FC}
 .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--cyan);
@@ -623,8 +644,9 @@ button,.filter-chip,.seg button,.pr-track{touch-action:manipulation}
             max(12px,env(safe-area-inset-left,0px));
   }
   .page-head,.banner,#uploadCard,#progressCard,#scoreCard,#exportCard{grid-column:1}
-  .page-head{padding:0 2px 5px;margin:0}
+  .page-head{padding:0 82px 5px 2px;margin:0}
   .page-head::after{width:88px;margin-top:7px}
+  .page-refresh{top:-2px;right:2px;min-height:32px;padding:4px 9px;font-size:11px}
   .eyebrow{font-size:9px;margin-bottom:3px;letter-spacing:.13em}
   .title{font-size:22px}
   .subtitle{font-size:11px;line-height:1.45;margin-top:2px}
@@ -635,6 +657,8 @@ button,.filter-chip,.seg button,.pr-track{touch-action:manipulation}
   #dropzone{padding:11px 12px}
   #dropzone .hint{display:none}
   #dropzone .formats{margin-top:3px}
+  .upload-progress{margin-top:6px;padding:7px 9px}
+  .upload-progress-meta{font-size:9px}
   #dropzone + .opt-row,#fileWrap + .opt-row{margin-top:12px}
   .opt-row{gap:8px;margin-bottom:8px}
   .opt-label{width:auto}
@@ -724,6 +748,10 @@ button,.filter-chip,.seg button,.pr-track{touch-action:manipulation}
 
 <div class="wrap">
   <div class="page-head">
+    <button class="btn page-refresh" id="pageRefresh" type="button"
+            title="刷新当前页面" aria-label="刷新当前页面">
+      <span class="refresh-icon" aria-hidden="true">↻</span><span>刷新</span>
+    </button>
     <div class="eyebrow"><span class="dot"></span>AI Transcription Studio <em>LOCAL · PRIVATE</em></div>
     <h1 class="title">mumupu 扒谱</h1>
     <div class="subtitle">把歌曲录音转成可编辑的乐谱，并导出 Synthesizer V 工程（SVP）与 MIDI。</div>
@@ -755,6 +783,21 @@ button,.filter-chip,.seg button,.pr-track{touch-action:manipulation}
           <div class="size" id="fMeta"></div>
         </div>
         <button class="del" id="fDel" title="移除">×</button>
+      </div>
+      <div class="upload-progress" id="uploadProgress" hidden aria-live="polite">
+        <div class="upload-progress-head">
+          <span id="uploadStage">上传中</span>
+          <strong id="uploadPct">0%</strong>
+        </div>
+        <div class="upload-progress-track" id="uploadProgressTrack"
+             role="progressbar" aria-label="音频上传进度"
+             aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <i id="uploadFill"></i>
+        </div>
+        <div class="upload-progress-meta">
+          <span id="uploadBytes">0 KB</span>
+          <span id="uploadSpeed">正在计算速度…</span>
+        </div>
       </div>
       <div class="player">
         <button class="play-btn" id="aPlay" disabled>▶</button>
@@ -922,6 +965,7 @@ button,.filter-chip,.seg button,.pr-track{touch-action:manipulation}
 /* ============================ 状态 ============================ */
 const S = {
   token:null, fileName:"", fileSize:0, duration:null,
+  uploading:false, uploadXhr:null,
   taskId:null, state:"idle",
   result:null, chords:[],
   // ③ 的三个勾选：**勾什么导什么**。默认只勾「人声主旋律」（用户 2026-09-15 定）
@@ -953,6 +997,18 @@ function bannerShow(title,msg,kind,acts){
 }
 function bannerHide(){ $("#banner").className="banner"; }
 $("#bannerClose").onclick=bannerHide;
+$("#pageRefresh").onclick=()=>{
+  const hasUnsaved=$("#rollDirty").classList.contains("on");
+  const risky=[];
+  if(S.uploading) risky.push("音频正在上传");
+  if(running()) risky.push("扒谱任务正在进行");
+  if(hasUnsaved) risky.push("乐谱还有未保存改动");
+  if(risky.length && !confirm(`${risky.join("；")}。刷新会中断当前页面操作，仍要刷新吗？`)) return;
+  const button=$("#pageRefresh");
+  button.disabled=true; button.classList.add("is-loading");
+  button.querySelector("span:last-child").textContent="刷新中";
+  location.reload();
+};
 
 const LOG=[];
 function log(msg,level){
@@ -974,68 +1030,206 @@ function pickFile(){
 ["dragleave","drop"].forEach(e=>document.addEventListener(e,ev=>{ ev.preventDefault(); if(e==="drop"||!ev.relatedTarget) document.body.classList.remove("dragging"); }));
 document.addEventListener("drop", ev=>{ ev.preventDefault(); const f=ev.dataTransfer?.files?.[0]; if(f) upload(f); });
 
+let uploadSeq=0;
+function uploadWithProgress(file, seq){
+  return new Promise((resolve,reject)=>{
+    const xhr=new XMLHttpRequest();
+    const fd=new FormData(); fd.append("file",file);
+    let lastAt=performance.now(), lastLoaded=0, smoothSpeed=0;
+    S.uploadXhr=xhr;
+    xhr.open("POST","/api/upload");
+    xhr.upload.onprogress=e=>{
+      if(seq!==uploadSeq) return;
+      const total=e.lengthComputable?e.total:file.size;
+      const now=performance.now();
+      const dt=Math.max(.05,(now-lastAt)/1000);
+      const instant=Math.max(0,(e.loaded-lastLoaded)/dt);
+      smoothSpeed=smoothSpeed?smoothSpeed*.65+instant*.35:instant;
+      lastAt=now; lastLoaded=e.loaded;
+      const pct=total?Math.max(0,Math.min(100,Math.floor(e.loaded/total*100))):0;
+      const remaining=smoothSpeed>0?Math.max(0,(total-e.loaded)/smoothSpeed):0;
+      $("#uploadProgress").hidden=false;
+      $("#uploadStage").textContent="正在上传音频";
+      $("#uploadPct").textContent=pct+"%";
+      $("#uploadFill").style.width=pct+"%";
+      $("#uploadProgressTrack").setAttribute("aria-valuenow",String(pct));
+      $("#uploadBytes").textContent=`${fmtSize(e.loaded)} / ${fmtSize(total)} · 剩余约 ${fmt(remaining)}`;
+      $("#uploadSpeed").textContent=smoothSpeed>0?fmtSize(smoothSpeed)+"/s":"正在计算速度…";
+      $("#fMeta").textContent=`上传中 ${pct}%`;
+    };
+    xhr.upload.onload=()=>{
+      if(seq!==uploadSeq) return;
+      $("#uploadStage").textContent="上传完成，服务器处理中…";
+      $("#uploadPct").textContent="100%";
+      $("#uploadFill").style.width="100%";
+      $("#uploadProgressTrack").setAttribute("aria-valuenow","100");
+      $("#uploadBytes").textContent=fmtSize(file.size);
+      $("#uploadSpeed").textContent="正在读取音频信息";
+      $("#fMeta").textContent="上传完成，正在处理…";
+    };
+    xhr.onload=()=>{
+      if(seq!==uploadSeq) return;
+      try{
+        let data={};
+        try{ data=JSON.parse(xhr.responseText||"{}"); }catch{}
+        if(xhr.status<200||xhr.status>=300) throw new Error(data.detail||`上传失败（HTTP ${xhr.status}）`);
+        resolve(data);
+      }catch(err){ reject(err); }
+    };
+    xhr.onerror=()=>reject(new Error("上传连接中断，请检查网络后重试"));
+    xhr.onabort=()=>{ const err=new Error("上传已取消"); err.name="AbortError"; reject(err); };
+    xhr.send(fd);
+  });
+}
 async function upload(file){
   const ext="."+(file.name.split(".").pop()||"").toLowerCase();
   if(![".wav",".mp3",".flac"].includes(ext)){ toast("仅支持 wav / mp3 / flac 格式","err"); return; }
-  const fd=new FormData(); fd.append("file",file);
-  $("#fName").textContent=file.name; $("#fMeta").textContent="上传中…";
+  if(running()){ toast("扒谱任务进行中，完成后再更换音频","err"); return; }
+  if(S.uploadXhr) S.uploadXhr.abort();
+  const seq=++uploadSeq;
+  S.uploading=true; refreshButtons();
+  $("#fName").textContent=file.name; $("#fMeta").textContent="准备上传…";
   $("#fileWrap").style.display="block"; $("#dropzone").style.display="none";
+  $("#uploadProgress").hidden=false;
+  $("#uploadStage").textContent="准备上传…";
+  $("#uploadPct").textContent="0%";
+  $("#uploadFill").style.width="0%";
+  $("#uploadProgressTrack").setAttribute("aria-valuenow","0");
+  $("#uploadBytes").textContent=`0 KB / ${fmtSize(file.size)}`;
+  $("#uploadSpeed").textContent="正在计算速度…";
+  $("#fDel").title="取消上传";
   try{
-    const r=await fetch("/api/upload",{method:"POST",body:fd});
-    const j=await r.json();
-    if(!r.ok) throw new Error(j.detail||"上传失败");
+    const j=await uploadWithProgress(file,seq);
+    if(seq!==uploadSeq) return;
     S.token=j.token; S.fileName=j.name; S.fileSize=j.size; S.duration=j.duration;
     S.notesSig=""; resetPiano();        // 重新上传 = 换曲子，作废旧钢琴音频
+    $("#uploadProgress").hidden=true;
     $("#fName").textContent=j.name;
     $("#fMeta").textContent=`${fmtSize(j.size)}${j.duration?" · "+fmt(j.duration):""}`;
     setupAudio(j.token, j.duration);
     log("上传成功："+j.name);
-    refreshButtons();
   }catch(err){
+    if(seq!==uploadSeq||err.name==="AbortError") return;
     toast(err.message,"err"); log("上传失败："+err.message,"error");
     resetFile();
+  }finally{
+    if(seq===uploadSeq){
+      S.uploading=false; S.uploadXhr=null; $("#fDel").title="移除";
+      if(S.token) $("#uploadProgress").hidden=true;
+      refreshButtons();
+    }
   }
 }
 function resetFile(){
+  uploadSeq++;
+  const pendingUpload=S.uploadXhr;
+  S.uploadXhr=null; S.uploading=false;
+  if(pendingUpload) pendingUpload.abort();
   S.token=null; S.fileName=""; S.fileSize=0; S.duration=null;
   S.notesSig=""; resetPiano();          // 换文件时清掉试听状态，避免残留上一首
+  audioSetupSeq++;
+  audio.pause(); audio.removeAttribute("src"); audio.load();
   $("#jpPanel").hidden=true; S.jianpu=null;
+  $("#uploadProgress").hidden=true; $("#fDel").title="移除";
   $("#fileWrap").style.display="none"; $("#dropzone").style.display="block";
   refreshButtons();
 }
-$("#fDel").onclick=()=>{ if(S.state==="running"||S.state==="stopping") return; resetFile(); };
+$("#fDel").onclick=()=>{
+  if(S.state==="running"||S.state==="stopping") return;
+  const wasUploading=!!S.uploadXhr;
+  resetFile();
+  if(wasUploading) toast("已取消上传");
+};
 
 /* 迷你播放器 */
 const audio=new Audio(); audio.preload="auto";
+let audioSetupSeq=0, audioErrorShown=false;
+const isLocalHost=()=>["localhost","127.0.0.1","::1"].includes(location.hostname);
 $("#aPlay").onclick=()=>{ if(audio.paused){ audio.play().catch(e=>toast("无法播放："+e.message,"err")); } else audio.pause(); };
 audio.onplay=()=>{ $("#aPlay").textContent="❚❚"; };
 audio.onpause=()=>{ $("#aPlay").textContent="▶"; };
-audio.ontimeupdate=()=>{ $("#aTime").textContent=`${fmt(audio.currentTime)} / ${fmt(audio.duration||S.duration||0)}`; paintWave(); };
+const audioClock=()=>`${fmt(audio.currentTime)} / ${fmt(audio.duration||S.duration||0)}`;
+audio.ontimeupdate=()=>{ $("#aTime").textContent=audioClock(); paintWave(); };
+audio.onloadedmetadata=()=>{ $("#aTime").textContent=audioClock(); };
+audio.oncanplay=audio.onloadeddata=()=>{ $("#aPlay").disabled=false; $("#aTime").textContent=audioClock(); };
+audio.onwaiting=()=>{ if(!audio.paused) $("#aTime").textContent="缓冲中…"; };
+audio.onplaying=()=>{ $("#aTime").textContent=audioClock(); };
+audio.onerror=()=>{
+  if(!audio.src || audioErrorShown) return;
+  audioErrorShown=true; $("#aPlay").disabled=true;
+  const code=audio.error?.code;
+  const msg=code===2?"网络连接中断，试听音频加载失败":code===3?"浏览器无法解码试听音频":"试听音频加载失败";
+  $("#aTime").textContent=msg; toast(msg,"err");
+};
 $("#aVol").oninput=e=>{ audio.volume=e.target.value/100; };
 $("#wave").onclick=e=>{ if(!audio.duration) return; const r=e.currentTarget.getBoundingClientRect(); audio.currentTime=(e.clientX-r.left)/r.width*audio.duration; };
 
 let wavePeaks=null, waveBars=[];
-async function setupAudio(token, duration){
-  audio.src=`/api/audio/${token}`; $("#aPlay").disabled=false; audio.volume=$("#aVol").value/100;
-  $("#aTime").textContent=`0:00 / ${fmt(duration||0)}`;
-  $("#wave").innerHTML="";
-  wavePeaks=null;
-  try{
-    const AC=window.AudioContext||window.webkitAudioContext;
-    const ctx=new AC(); const buf=await (await fetch(`/api/audio/${token}`)).arrayBuffer();
-    const decoded=await ctx.decodeAudioData(buf);
-    const data=decoded.getChannelData(0); const N=140; const blk=Math.floor(data.length/N)||1;
-    const peaks=[];
-    for(let i=0;i<N;i++){ let m=0; for(let j=0;j<blk;j+=32){ const v=Math.abs(data[i*blk+j]||0); if(v>m)m=v; } peaks.push(m); }
-    wavePeaks=peaks; ctx.close();
-  }catch(e){ wavePeaks=null; }
-  waveBars=[];
+function drawWave(){
+  waveBars=[]; $("#wave").innerHTML="";
   for(let i=0;i<140;i++){
     const b=document.createElement("i");
     const h = wavePeaks ? (10+wavePeaks[i]*90) : (15+Math.abs(Math.sin(i/9))*55+((i*37)%30));
     b.style.height=Math.min(100,h)+"%";
     $("#wave").appendChild(b); waveBars.push(b);
   }
+}
+async function waitForAudioPreview(token){
+  const infoUrl=`/api/audio/${encodeURIComponent(token)}/preview/info`;
+  for(let attempt=0;attempt<20;attempt++){
+    const resp=await fetch(infoUrl,{cache:"no-store"});
+    const info=await resp.json();
+    if(!info.available) throw new Error("上传文件已失效，请重新选择音频");
+    if(info.ready) return;
+    if(info.status==="error") throw new Error(info.error||"在线试听生成失败");
+    await new Promise(r=>setTimeout(r,1200));
+  }
+  throw new Error("在线试听准备超时，请稍后重试");
+}
+async function setupAudio(token, duration){
+  const seq=++audioSetupSeq;
+  const encoded=encodeURIComponent(token);
+  const local=isLocalHost();
+  const sourceUrl=local ? `/api/audio/${encoded}` : `/api/audio/${encoded}/preview`;
+  audio.pause(); audio.removeAttribute("src"); audio.load();
+  audio.volume=$("#aVol").value/100;
+  audioErrorShown=false;
+  $("#aPlay").disabled=true;
+  $("#aTime").textContent=local ? `0:00 / ${fmt(duration||0)}` : "正在准备轻量试听…";
+  $("#wave").innerHTML="";
+  wavePeaks=null;
+  drawWave();
+
+  if(!local){
+    try{
+      await waitForAudioPreview(token);
+    }catch(e){
+      if(seq!==audioSetupSeq) return;
+      $("#aTime").textContent="试听音频准备失败";
+      toast(e.message||"试听音频准备失败","err");
+      return;
+    }
+    if(seq!==audioSetupSeq) return;
+    $("#aTime").textContent="正在缓冲轻量试听…";
+  }
+
+  audio.src=sourceUrl; audio.load();
+
+  // 波形只是辅助信息。外网首包延迟较高时立即使用占位波形，不能让它和正在播放的
+  // 试听音频抢同一条慢速隧道；本机则允许稍长一点时间读取真实波形。
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(), local?5000:2500);
+  let ctx=null;
+  try{
+    const AC=window.AudioContext||window.webkitAudioContext;
+    ctx=new AC(); const buf=await (await fetch(sourceUrl,{signal:controller.signal})).arrayBuffer();
+    const decoded=await ctx.decodeAudioData(buf);
+    const data=decoded.getChannelData(0); const N=140; const blk=Math.floor(data.length/N)||1;
+    const peaks=[];
+    for(let i=0;i<N;i++){ let m=0; for(let j=0;j<blk;j+=32){ const v=Math.abs(data[i*blk+j]||0); if(v>m)m=v; } peaks.push(m); }
+    if(seq===audioSetupSeq){ wavePeaks=peaks; drawWave(); }
+  }catch(e){ wavePeaks=null; }
+  finally{ clearTimeout(timer); if(ctx) ctx.close().catch(()=>{}); }
 }
 function paintWave(){
   if(!audio.duration||!waveBars.length) return;
@@ -1067,7 +1261,7 @@ $("#selRange").onchange=e=>{ $("#customRange").style.display = e.target.value===
 function running(){ return S.state==="running"||S.state==="stopping"||S.state==="queued"; }
 function refreshButtons(){
   const busy=running();
-  $("#btnStart").disabled = busy || !S.token;
+  $("#btnStart").disabled = busy || S.uploading || !S.token;
   $("#btnStop").disabled = !busy;
   document.body.dataset.busy = busy?"1":"0";
   $("#fDel").disabled = busy;
